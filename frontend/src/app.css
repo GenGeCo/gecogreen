@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Font Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Custom base styles */
+@layer base {
+	html {
+		font-family: 'Inter', system-ui, sans-serif;
+	}
+
+	body {
+		@apply bg-base-100 text-base-content;
+	}
+}
+
+/* Custom components */
+@layer components {
+	/* Card prodotto */
+	.product-card {
+		@apply card bg-base-100 shadow-md hover:shadow-lg transition-shadow duration-200;
+	}
+
+	/* Badge impatto ecologico */
+	.eco-badge {
+		@apply badge badge-success gap-1;
+	}
+
+	/* Input con stile GecoGreen */
+	.input-geco {
+		@apply input input-bordered focus:input-primary;
+	}
+
+	/* Button primario GecoGreen */
+	.btn-geco {
+		@apply btn btn-primary hover:brightness-110;
+	}
+}
+
+/* Utility classes */
+@layer utilities {
+	/* Gradiente verde */
+	.bg-geco-gradient {
+		background: linear-gradient(135deg, #00C853 0%, #4CAF50 100%);
+	}
+
+	/* Testo gradiente */
+	.text-geco-gradient {
+		@apply bg-clip-text text-transparent bg-geco-gradient;
+	}
+}

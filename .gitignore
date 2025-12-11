@@ -1,0 +1,60 @@
+# ============================================
+# GECOGREEN - Git Ignore
+# ============================================
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+/build
+/dist
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker volumes (local data)
+postgres_data/
+redis_data/
+
+# Frontend
+frontend/.svelte-kit/
+frontend/build/
+frontend/node_modules/
+
+# Backend
+backend/tmp/
+backend/*.exe
+
+# Test coverage
+coverage/
+*.cover
+*.out
+
+# Secrets (never commit these!)
+*.pem
+*.key
+credentials.json
+secrets.json

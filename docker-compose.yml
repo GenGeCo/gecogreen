@@ -1,0 +1,105 @@
+# ============================================
+# GECOGREEN - Docker Compose (Development)
+# ============================================
+# Avvia con: docker-compose up -d
+# Ferma con: docker-compose down
+# Logs: docker-compose logs -f
+# ============================================
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # PostgreSQL Database
+  # ==========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: gecogreen_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gecogreen
+      POSTGRES_USER: gecogreen
+      POSTGRES_PASSWORD: gecogreen_dev_2024
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./schemas/database.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gecogreen -d gecogreen"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # Redis Cache
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: gecogreen_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # Backend Go API
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gecogreen_backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=development
+      - DATABASE_URL=postgres://gecogreen:gecogreen_dev_2024@postgres:5432/gecogreen?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=dev_jwt_secret_change_in_production
+      - PORT=8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ==========================================
+  # Adminer (DB GUI) - Solo sviluppo
+  # ==========================================
+  adminer:
+    image: adminer:latest
+    container_name: gecogreen_adminer
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: nette
+
+# ==========================================
+# Volumes
+# ==========================================
+volumes:
+  postgres_data:
+    name: gecogreen_postgres_data
+  redis_data:
+    name: gecogreen_redis_data
+
+# ==========================================
+# Networks (optional, Docker creates default)
+# ==========================================
+networks:
+  default:
+    name: gecogreen_network
