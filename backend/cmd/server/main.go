@@ -11,26 +11,22 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
+	"github.com/gecogreen/backend/internal/auth"
 	"github.com/gecogreen/backend/internal/config"
 	"github.com/gecogreen/backend/internal/database"
 	"github.com/gecogreen/backend/internal/handlers"
+	"github.com/gecogreen/backend/internal/middleware"
+	"github.com/gecogreen/backend/internal/repository"
+	"github.com/gecogreen/backend/internal/storage"
 )
 
-// @title GecoGreen API
-// @version 0.1.0
-// @description API per la piattaforma antispreco GecoGreen
-// @host localhost:8080
-// @BasePath /api/v1
-
 func main() {
-	// Load configuration
 	cfg := config.Load()
 
 	log.Printf("🌿 GecoGreen API Starting...")
 	log.Printf("   Environment: %s", cfg.AppEnv)
 	log.Printf("   Port: %s", cfg.Port)
 
-	// Connect to databases
 	db, err := database.New(cfg.DatabaseURL, cfg.RedisURL)
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to database: %v", err)
@@ -40,19 +36,43 @@ func main() {
 	log.Println("✅ Connected to PostgreSQL")
 	log.Println("✅ Connected to Redis")
 
-	// Create Fiber app
+	// Repositories
+	userRepo := repository.NewUserRepository(db.Pool)
+	productRepo := repository.NewProductRepository(db.Pool)
+
+	// JWT
+	jwtManager := auth.NewJWTManager(cfg.JWTSecret)
+
+	// Handlers
+	healthHandler := handlers.NewHealthHandler(db)
+	authHandler := handlers.NewAuthHandler(userRepo, jwtManager)
+	productHandler := handlers.NewProductHandler(productRepo)
+
+	// Optional: R2 Storage (for image uploads)
+	var uploadHandler *handlers.UploadHandler
+	if cfg.R2AccountID != "" && cfg.R2AccessKeyID != "" {
+		r2Storage, err := storage.NewR2Storage(cfg.R2AccountID, cfg.R2AccessKeyID, cfg.R2SecretKey, cfg.R2BucketName)
+		if err != nil {
+			log.Printf("⚠️  R2 Storage not configured: %v", err)
+		} else {
+			uploadHandler = handlers.NewUploadHandler(r2Storage, productRepo)
+			log.Println("✅ Connected to Cloudflare R2")
+		}
+	} else {
+		log.Println("⚠️  R2 Storage not configured (uploads disabled)")
+	}
+
+	// Fiber app
 	app := fiber.New(fiber.Config{
 		AppName:      "GecoGreen API v0.1.0",
 		ErrorHandler: customErrorHandler,
+		BodyLimit:    10 * 1024 * 1024,
 	})
 
-	// Middleware
 	app.Use(recover.New())
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} - ${latency} ${method} ${path}\n",
 	}))
-
-	// CORS - più permissivo in development
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: func() string {
 			if cfg.IsDevelopment() {
@@ -64,8 +84,46 @@ func main() {
 		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
 	}))
 
-	// Setup routes
-	setupRoutes(app, db)
+	authMiddleware := middleware.AuthMiddleware(jwtManager, userRepo)
+
+	// Routes
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"name": "GecoGreen API", "version": "0.1.0"})
+	})
+	app.Get("/ping", healthHandler.Ping)
+	app.Get("/health", healthHandler.Check)
+
+	v1 := app.Group("/api/v1")
+	v1.Get("/health", healthHandler.Check)
+
+	// Auth
+	authRoutes := v1.Group("/auth")
+	authRoutes.Post("/register", authHandler.Register)
+	authRoutes.Post("/login", authHandler.Login)
+	authRoutes.Post("/refresh", authHandler.Refresh)
+	authRoutes.Get("/me", authMiddleware, authHandler.Me)
+
+	// Products
+	products := v1.Group("/products")
+	products.Get("/", productHandler.List)
+	products.Get("/:id", productHandler.Get)
+	products.Post("/", authMiddleware, productHandler.Create)
+	products.Put("/:id", authMiddleware, productHandler.Update)
+	products.Delete("/:id", authMiddleware, productHandler.Delete)
+	products.Get("/seller/my", authMiddleware, productHandler.MyProducts)
+
+	// Upload (only if R2 configured)
+	if uploadHandler != nil {
+		upload := v1.Group("/upload")
+		upload.Post("/product/:product_id/image", authMiddleware, uploadHandler.UploadProductImage)
+		upload.Post("/product/:product_id/expiry-photo", authMiddleware, uploadHandler.UploadExpiryPhoto)
+		upload.Post("/presign", authMiddleware, uploadHandler.GetPresignedURL)
+	}
+
+	// 404
+	app.Use(func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Not Found"})
+	})
 
 	// Graceful shutdown
 	go func() {
@@ -76,79 +134,18 @@ func main() {
 		_ = app.Shutdown()
 	}()
 
-	// Start server
 	log.Printf("🚀 Server running on http://localhost:%s", cfg.Port)
 	if err := app.Listen(":" + cfg.Port); err != nil {
 		log.Fatalf("❌ Server failed: %v", err)
 	}
 }
 
-func setupRoutes(app *fiber.App, db *database.DB) {
-	// Health handlers
-	healthHandler := handlers.NewHealthHandler(db)
-
-	// Root routes
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"name":    "GecoGreen API",
-			"version": "0.1.0",
-			"docs":    "/api/v1/docs",
-		})
-	})
-
-	app.Get("/ping", healthHandler.Ping)
-	app.Get("/health", healthHandler.Check)
-
-	// API v1
-	v1 := app.Group("/api/v1")
-	{
-		// Health
-		v1.Get("/health", healthHandler.Check)
-
-		// Auth routes (TODO)
-		// auth := v1.Group("/auth")
-		// {
-		// 	auth.Post("/register", authHandler.Register)
-		// 	auth.Post("/login", authHandler.Login)
-		// 	auth.Post("/refresh", authHandler.Refresh)
-		// 	auth.Post("/logout", authHandler.Logout)
-		// }
-
-		// Products routes (TODO)
-		// products := v1.Group("/products")
-		// {
-		// 	products.Get("/", productHandler.List)
-		// 	products.Get("/:id", productHandler.Get)
-		// 	products.Post("/", authMiddleware, productHandler.Create)
-		// 	products.Put("/:id", authMiddleware, productHandler.Update)
-		// 	products.Delete("/:id", authMiddleware, productHandler.Delete)
-		// }
-
-		// Orders routes (TODO)
-		// Users routes (TODO)
-		// Chat routes (TODO)
-	}
-
-	// 404 handler
-	app.Use(func(c *fiber.Ctx) error {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error":   "Not Found",
-			"message": "La risorsa richiesta non esiste",
-		})
-	})
-}
-
 func customErrorHandler(c *fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
 	message := "Internal Server Error"
-
 	if e, ok := err.(*fiber.Error); ok {
 		code = e.Code
 		message = e.Message
 	}
-
-	return c.Status(code).JSON(fiber.Map{
-		"error":   message,
-		"code":    code,
-	})
+	return c.Status(code).JSON(fiber.Map{"error": message, "code": code})
 }

@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(ren:*)",
+      "Bash(cmd /c \"cd /d d:\\ && ren Progett_SprecoZero GecoGreen\")",
+      "Bash(cmd /c \"dir d:\\ /b | findstr Geco\")",
+      "Bash(docker-compose up:*)",
+      "Bash(docker compose up:*)",
+      "Bash(cmd /c \"cd /d d:\\Progett_SprecoZero && docker compose up -d --build\")",
+      "Bash(cmd /c \"docker ps -a\")",
+      "Bash(cmd /c \"docker --version && docker compose version\")",
+      "Bash(cmd /c:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker ps:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git -C \"d:\\Progett_SprecoZero\" init)",
+      "Bash(git -C \"d:\\Progett_SprecoZero\" add -A)",
+      "Bash(git -C \"d:\\Progett_SprecoZero\" status --short)",
+      "Bash(git -C \"d:\\Progett_SprecoZero\" rm:*)"
+    ]
+  }
+}

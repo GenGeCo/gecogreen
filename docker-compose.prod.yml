@@ -1,9 +1,7 @@
 # ============================================
-# GECOGREEN - Docker Compose (Development)
+# GECOGREEN - Docker Compose (Production)
 # ============================================
-# Avvia con: docker-compose up -d
-# Ferma con: docker-compose down
-# Logs: docker-compose logs -f
+# Per Coolify o deploy manuale
 # ============================================
 
 version: '3.8'
@@ -15,22 +13,22 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: gecogreen_postgres
-    restart: unless-stopped
+    restart: always
     environment:
-      POSTGRES_DB: gecogreen
-      POSTGRES_USER: gecogreen
-      POSTGRES_PASSWORD: gecogreen_dev_2024
+      POSTGRES_DB: ${POSTGRES_DB:-gecogreen}
+      POSTGRES_USER: ${POSTGRES_USER:-gecogreen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./schemas/database.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gecogreen -d gecogreen"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-gecogreen} -d ${POSTGRES_DB:-gecogreen}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - gecogreen
 
   # ==========================================
   # Redis Cache
@@ -38,9 +36,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: gecogreen_redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
+    restart: always
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
@@ -49,6 +45,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - gecogreen
 
   # ==========================================
   # Backend Go API
@@ -58,39 +56,50 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: gecogreen_backend
-    restart: unless-stopped
+    restart: always
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     environment:
-      - APP_ENV=development
-      - DATABASE_URL=postgres://gecogreen:gecogreen_dev_2024@postgres:5432/gecogreen?sslmode=disable
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=dev_jwt_secret_change_in_production
+      - APP_ENV=production
       - PORT=8080
-      - R2_ACCOUNT_ID=f389ebf00c17aebbb28c8ec3f4e396a2
-      - R2_ACCESS_KEY_ID=ec99be4b5d9a0a51c13ec621a8f2bdea
-      - R2_SECRET_KEY=907b226de661a8e5e15027d220232ab9b50fa6815648d86d2c50e0ea4e6d0950
-      - R2_BUCKET_NAME=gecogreen-assets
+      - DATABASE_URL=postgres://${POSTGRES_USER:-gecogreen}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-gecogreen}?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_KEY=${R2_SECRET_KEY}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME:-gecogreen-assets}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - RESEND_API_KEY=${RESEND_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - gecogreen
 
   # ==========================================
-  # Adminer (DB GUI) - Solo sviluppo
+  # Frontend SvelteKit
   # ==========================================
-  adminer:
-    image: adminer:latest
-    container_name: gecogreen_adminer
-    restart: unless-stopped
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - PUBLIC_API_URL=${PUBLIC_API_URL:-http://localhost:8080}
+    container_name: gecogreen_frontend
+    restart: always
     ports:
-      - "8081:8080"
-    depends_on:
-      - postgres
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      ADMINER_DEFAULT_SERVER: postgres
-      ADMINER_DESIGN: nette
+      - NODE_ENV=production
+      - ORIGIN=${FRONTEND_ORIGIN:-http://localhost:3000}
+    depends_on:
+      - backend
+    networks:
+      - gecogreen
 
 # ==========================================
 # Volumes
@@ -102,8 +111,8 @@ volumes:
     name: gecogreen_redis_data
 
 # ==========================================
-# Networks (optional, Docker creates default)
+# Networks
 # ==========================================
 networks:
-  default:
+  gecogreen:
     name: gecogreen_network
