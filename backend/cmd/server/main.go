@@ -78,7 +78,13 @@ func main() {
 			if cfg.IsDevelopment() {
 				return "*"
 			}
-			return "https://www.gecogreen.com,https://gecogreen.com"
+			// Allow custom frontend origin from env, plus default domains
+			frontendOrigin := os.Getenv("FRONTEND_ORIGIN")
+			origins := "https://www.gecogreen.com,https://gecogreen.com"
+			if frontendOrigin != "" {
+				origins = frontendOrigin + "," + origins
+			}
+			return origins
 		}(),
 		AllowMethods: "GET,POST,PUT,DELETE,PATCH,OPTIONS",
 		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
