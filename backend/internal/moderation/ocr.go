@@ -4,9 +4,6 @@ import (
 	"context"
 	"regexp"
 	"strings"
-
-	vision "cloud.google.com/go/vision/apiv1"
-	"cloud.google.com/go/vision/v2/apiv1/visionpb"
 )
 
 // OCRResult holds the results of text detection
@@ -20,76 +17,63 @@ type OCRResult struct {
 }
 
 // OCRService handles text detection in images
+// Currently a stub - Google Cloud Vision can be added later
 type OCRService struct {
-	client *vision.ImageAnnotatorClient
+	enabled bool
 }
 
-// NewOCRService creates a new OCR service using Google Cloud Vision
-// Requires GOOGLE_APPLICATION_CREDENTIALS env var to be set
+// NewOCRService creates a new OCR service
+// Currently returns a disabled service - OCR can be enabled later with Google Cloud Vision
 func NewOCRService(ctx context.Context) (*OCRService, error) {
-	client, err := vision.NewImageAnnotatorClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return &OCRService{client: client}, nil
+	// OCR is disabled by default until Google Cloud Vision is configured
+	// To enable: set GOOGLE_APPLICATION_CREDENTIALS and uncomment the vision client code
+	return &OCRService{enabled: false}, nil
 }
 
 // Close closes the client connection
 func (s *OCRService) Close() error {
-	return s.client.Close()
+	return nil
+}
+
+// IsEnabled returns whether OCR is actually functional
+func (s *OCRService) IsEnabled() bool {
+	return s.enabled
 }
 
 // AnalyzeImageFromURL analyzes an image from a URL
+// Currently returns empty result - OCR disabled
 func (s *OCRService) AnalyzeImageFromURL(ctx context.Context, imageURL string) (*OCRResult, error) {
-	image := vision.NewImageFromURI(imageURL)
-	return s.analyzeImage(ctx, image)
+	if !s.enabled {
+		return &OCRResult{Confidence: 0}, nil
+	}
+	// TODO: Implement with Google Cloud Vision when Go 1.24+ is available
+	return &OCRResult{Confidence: 0}, nil
 }
 
 // AnalyzeImageFromBytes analyzes an image from bytes
+// Currently returns empty result - OCR disabled
 func (s *OCRService) AnalyzeImageFromBytes(ctx context.Context, imageBytes []byte) (*OCRResult, error) {
-	image := &visionpb.Image{Content: imageBytes}
-	return s.analyzeImage(ctx, image)
+	if !s.enabled {
+		return &OCRResult{Confidence: 0}, nil
+	}
+	// TODO: Implement with Google Cloud Vision when Go 1.24+ is available
+	return &OCRResult{Confidence: 0}, nil
 }
 
-func (s *OCRService) analyzeImage(ctx context.Context, image *visionpb.Image) (*OCRResult, error) {
-	// Detect text in image
-	annotations, err := s.client.DetectTexts(ctx, image, nil, 10)
-	if err != nil {
-		return nil, err
-	}
-
+// AnalyzeText analyzes text for suspicious content (phone, email, URLs)
+// This works without Google Cloud Vision - useful for analyzing text fields
+func AnalyzeText(text string) *OCRResult {
 	result := &OCRResult{
-		Confidence: 0,
+		DetectedText: text,
+		Confidence:   1.0,
 	}
 
-	if len(annotations) == 0 {
-		return result, nil
-	}
-
-	// First annotation contains all detected text
-	fullText := annotations[0].Description
-	result.DetectedText = fullText
-
-	// Check for phone numbers
-	result.DetectedPhone = containsPhoneNumber(fullText)
-
-	// Check for emails
-	result.DetectedEmail = containsEmail(fullText)
-
-	// Check for URLs
-	result.DetectedURL = containsURL(fullText)
-
-	// Calculate if suspicious
+	result.DetectedPhone = containsPhoneNumber(text)
+	result.DetectedEmail = containsEmail(text)
+	result.DetectedURL = containsURL(text)
 	result.IsSuspicious = result.DetectedPhone || result.DetectedEmail || result.DetectedURL
 
-	// Confidence based on bounding box coverage
-	if annotations[0].BoundingPoly != nil {
-		result.Confidence = 0.9 // High confidence if we have bounding info
-	} else {
-		result.Confidence = 0.7
-	}
-
-	return result, nil
+	return result
 }
 
 // Phone number patterns (Italian and international)
