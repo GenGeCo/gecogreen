@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -35,6 +36,12 @@ func main() {
 
 	log.Println("✅ Connected to PostgreSQL")
 	log.Println("✅ Connected to Redis")
+
+	// Run database migrations
+	ctx := context.Background()
+	if err := db.Migrate(ctx); err != nil {
+		log.Fatalf("❌ Failed to run migrations: %v", err)
+	}
 
 	// Repositories
 	userRepo := repository.NewUserRepository(db.Pool)
