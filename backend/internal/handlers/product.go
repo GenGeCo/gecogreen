@@ -97,9 +97,7 @@ func (h *ProductHandler) Get(c *fiber.Ctx) error {
 func (h *ProductHandler) Create(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 
-	if !user.IsSeller() && !user.IsAdmin() {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Solo i venditori possono creare prodotti"})
-	}
+	// All authenticated users can create products now
 
 	var req models.CreateProductRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -172,7 +170,7 @@ func (h *ProductHandler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore"})
 	}
 
-	if product.SellerID != user.ID && !user.IsAdmin() {
+	if product.SellerID != user.ID && !user.IsAdmin {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Non autorizzato"})
 	}
 
@@ -230,7 +228,7 @@ func (h *ProductHandler) Delete(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore"})
 	}
 
-	if product.SellerID != user.ID && !user.IsAdmin() {
+	if product.SellerID != user.ID && !user.IsAdmin {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Non autorizzato"})
 	}
 

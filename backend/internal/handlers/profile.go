@@ -102,7 +102,7 @@ func (h *ProfileHandler) UploadAvatar(c *fiber.Ctx) error {
 
 	// Upload to R2
 	folder := "avatars/" + user.ID.String()
-	url, err := h.r2Storage.Upload(ctx, src, file.Header.Filename, contentType, folder)
+	url, err := h.r2Storage.Upload(ctx, src, file.Filename, contentType, folder)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore upload"})
 	}
@@ -150,7 +150,7 @@ func (h *ProfileHandler) UploadBusinessPhoto(c *fiber.Ctx) error {
 
 	// Upload to R2
 	folder := "business-photos/" + user.ID.String()
-	url, err := h.r2Storage.Upload(ctx, src, file.Header.Filename, contentType, folder)
+	url, err := h.r2Storage.Upload(ctx, src, file.Filename, contentType, folder)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore upload"})
 	}
