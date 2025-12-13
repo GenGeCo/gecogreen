@@ -27,7 +27,13 @@
       "Bash(git -C \"d:\\Progett_SprecoZero\" init)",
       "Bash(git -C \"d:\\Progett_SprecoZero\" add -A)",
       "Bash(git -C \"d:\\Progett_SprecoZero\" status --short)",
-      "Bash(git -C \"d:\\Progett_SprecoZero\" rm:*)"
+      "Bash(git -C \"d:\\Progett_SprecoZero\" rm:*)",
+      "Bash(git -C \"d:\\Progett_SprecoZero\" commit -m \"$(cat <<''EOF''\nInitial commit: GecoGreen MVP\n\nFeatures:\n- Backend Go + Fiber API (auth, products CRUD, R2 upload)\n- Frontend SvelteKit + DaisyUI\n- PostgreSQL + Redis via Docker\n- Cloudflare R2 image storage\n\n🦎 GecoGreen - Piattaforma Antispreco\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git -C \"d:\\Progett_SprecoZero\" remote -v)",
+      "Bash(git -C \"d:\\Progett_SprecoZero\" push -u origin main)",
+      "Bash(dir /s /b \"d:\\Progett_SprecoZero\\backend\\*.go\")",
+      "Bash(cd:*)",
+      "Bash(go mod tidy:*)"
     ]
   }
 }

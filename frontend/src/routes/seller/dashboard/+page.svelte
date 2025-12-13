@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { api, type Product } from '$lib/api';
-	import { isAuthenticated, isSeller } from '$lib/stores/auth';
+	import { isAuthenticated } from '$lib/stores/auth';
 
 	let products: Product[] = [];
 	let loading = true;
@@ -14,11 +14,9 @@
 		draft: 0
 	};
 
-	// Redirect if not seller
+	// Redirect if not authenticated
 	$: if ($isAuthenticated !== undefined && !$isAuthenticated) {
 		goto('/login');
-	} else if ($isSeller !== undefined && !$isSeller) {
-		goto('/');
 	}
 
 	async function loadProducts() {

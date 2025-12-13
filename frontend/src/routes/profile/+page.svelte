@@ -1,0 +1,613 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { api, type User, type Location, type SocialLinks } from '$lib/api';
+	import { auth, isAuthenticated, currentUser, isBusiness } from '$lib/stores/auth';
+
+	let loading = true;
+	let saving = false;
+	let error = '';
+	let success = '';
+	let locations: Location[] = [];
+
+	// Form data
+	let firstName = '';
+	let lastName = '';
+	let phone = '';
+	let city = '';
+	let province = '';
+	let postalCode = '';
+	let businessName = '';
+	let vatNumber = '';
+	let socialLinks: SocialLinks = {};
+	let hasMultipleLocations = false;
+
+	// New location form
+	let showLocationForm = false;
+	let newLocation = {
+		name: '',
+		address_street: '',
+		address_city: '',
+		address_province: '',
+		address_postal_code: '',
+		phone: '',
+		email: '',
+		is_primary: false
+	};
+
+	// Redirect if not authenticated
+	$: if ($isAuthenticated !== undefined && !$isAuthenticated) {
+		goto('/login');
+	}
+
+	// Initialize form from user data
+	$: if ($currentUser) {
+		firstName = $currentUser.first_name || '';
+		lastName = $currentUser.last_name || '';
+		phone = $currentUser.phone || '';
+		city = $currentUser.city || '';
+		province = $currentUser.province || '';
+		postalCode = $currentUser.postal_code || '';
+		businessName = $currentUser.business_name || '';
+		vatNumber = $currentUser.vat_number || '';
+		socialLinks = $currentUser.social_links || {};
+		hasMultipleLocations = $currentUser.has_multiple_locations || false;
+	}
+
+	async function loadProfile() {
+		loading = true;
+		try {
+			const result = await api.getProfile();
+			locations = result.locations || [];
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Errore caricamento';
+		}
+		loading = false;
+	}
+
+	async function saveProfile() {
+		error = '';
+		success = '';
+		saving = true;
+
+		try {
+			const updated = await api.updateProfile({
+				first_name: firstName,
+				last_name: lastName,
+				phone: phone || undefined,
+				city: city || undefined,
+				province: province || undefined,
+				postal_code: postalCode || undefined,
+				business_name: businessName || undefined,
+				vat_number: vatNumber || undefined,
+				social_links: socialLinks,
+				has_multiple_locations: hasMultipleLocations
+			});
+			auth.updateUser(updated);
+			success = 'Profilo aggiornato!';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Errore salvataggio';
+		}
+		saving = false;
+	}
+
+	async function uploadAvatar(event: Event) {
+		const input = event.target as HTMLInputElement;
+		if (!input.files || input.files.length === 0) return;
+
+		const file = input.files[0];
+		if (file.size > 2 * 1024 * 1024) {
+			error = 'Immagine troppo grande (max 2MB)';
+			return;
+		}
+
+		error = '';
+		saving = true;
+		try {
+			const result = await api.uploadAvatar(file);
+			if ($currentUser) {
+				auth.updateUser({ ...$currentUser, avatar_url: result.avatar_url });
+			}
+			success = 'Avatar aggiornato!';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Errore upload';
+		}
+		saving = false;
+	}
+
+	async function addLocation() {
+		if (!newLocation.name || !newLocation.address_street || !newLocation.address_city || !newLocation.address_postal_code) {
+			error = 'Compila tutti i campi obbligatori';
+			return;
+		}
+
+		error = '';
+		saving = true;
+		try {
+			const loc = await api.createLocation({
+				name: newLocation.name,
+				address_street: newLocation.address_street,
+				address_city: newLocation.address_city,
+				address_province: newLocation.address_province || undefined,
+				address_postal_code: newLocation.address_postal_code,
+				phone: newLocation.phone || undefined,
+				email: newLocation.email || undefined,
+				is_primary: newLocation.is_primary
+			});
+			locations = [...locations, loc];
+			showLocationForm = false;
+			newLocation = {
+				name: '',
+				address_street: '',
+				address_city: '',
+				address_province: '',
+				address_postal_code: '',
+				phone: '',
+				email: '',
+				is_primary: false
+			};
+			success = 'Sede aggiunta!';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Errore creazione sede';
+		}
+		saving = false;
+	}
+
+	async function deleteLocation(id: string, name: string) {
+		if (!confirm(`Eliminare la sede "${name}"?`)) return;
+
+		try {
+			await api.deleteLocation(id);
+			locations = locations.filter(l => l.id !== id);
+			success = 'Sede eliminata';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Errore eliminazione';
+		}
+	}
+
+	onMount(loadProfile);
+</script>
+
+<svelte:head>
+	<title>Il Mio Profilo - GecoGreen</title>
+</svelte:head>
+
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+	<h1 class="text-3xl font-bold mb-6">Il Mio Profilo</h1>
+
+	{#if error}
+		<div class="alert alert-error mb-6">
+			<span>{error}</span>
+			<button class="btn btn-sm btn-ghost" on:click={() => error = ''}>✕</button>
+		</div>
+	{/if}
+
+	{#if success}
+		<div class="alert alert-success mb-6">
+			<span>{success}</span>
+			<button class="btn btn-sm btn-ghost" on:click={() => success = ''}>✕</button>
+		</div>
+	{/if}
+
+	{#if loading}
+		<div class="flex justify-center py-12">
+			<span class="loading loading-spinner loading-lg"></span>
+		</div>
+	{:else}
+		<div class="space-y-6">
+			<!-- Avatar Section -->
+			<div class="card bg-base-100 shadow">
+				<div class="card-body">
+					<h2 class="card-title text-lg">Foto Profilo</h2>
+					<div class="flex items-center gap-6">
+						<div class="avatar placeholder">
+							{#if $currentUser?.avatar_url}
+								<div class="w-24 rounded-full">
+									<img src={$currentUser.avatar_url} alt="Avatar" />
+								</div>
+							{:else}
+								<div class="bg-primary text-primary-content rounded-full w-24">
+									<span class="text-3xl">{firstName?.charAt(0) || 'U'}</span>
+								</div>
+							{/if}
+						</div>
+						<div>
+							<input
+								type="file"
+								accept="image/jpeg,image/png,image/webp"
+								class="file-input file-input-bordered file-input-sm"
+								on:change={uploadAvatar}
+							/>
+							<p class="text-sm text-base-content/60 mt-1">JPG, PNG o WebP. Max 2MB.</p>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Personal Info -->
+			<div class="card bg-base-100 shadow">
+				<div class="card-body">
+					<h2 class="card-title text-lg">Informazioni Personali</h2>
+
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div class="form-control">
+							<label class="label" for="firstName">
+								<span class="label-text">Nome</span>
+							</label>
+							<input
+								type="text"
+								id="firstName"
+								bind:value={firstName}
+								class="input input-bordered"
+							/>
+						</div>
+
+						<div class="form-control">
+							<label class="label" for="lastName">
+								<span class="label-text">Cognome</span>
+							</label>
+							<input
+								type="text"
+								id="lastName"
+								bind:value={lastName}
+								class="input input-bordered"
+							/>
+						</div>
+
+						<div class="form-control">
+							<label class="label" for="phone">
+								<span class="label-text">Telefono</span>
+							</label>
+							<input
+								type="tel"
+								id="phone"
+								bind:value={phone}
+								class="input input-bordered"
+								placeholder="+39 xxx xxx xxxx"
+							/>
+						</div>
+
+						<div class="form-control">
+							<label class="label" for="email">
+								<span class="label-text">Email</span>
+							</label>
+							<input
+								type="email"
+								value={$currentUser?.email || ''}
+								class="input input-bordered"
+								disabled
+							/>
+						</div>
+					</div>
+
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+						<div class="form-control">
+							<label class="label" for="city">
+								<span class="label-text">Città</span>
+							</label>
+							<input
+								type="text"
+								id="city"
+								bind:value={city}
+								class="input input-bordered"
+							/>
+						</div>
+
+						<div class="form-control">
+							<label class="label" for="province">
+								<span class="label-text">Provincia</span>
+							</label>
+							<input
+								type="text"
+								id="province"
+								bind:value={province}
+								class="input input-bordered"
+								maxlength="2"
+							/>
+						</div>
+
+						<div class="form-control">
+							<label class="label" for="postalCode">
+								<span class="label-text">CAP</span>
+							</label>
+							<input
+								type="text"
+								id="postalCode"
+								bind:value={postalCode}
+								class="input input-bordered"
+								maxlength="5"
+							/>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Business Info (if business account) -->
+			{#if $isBusiness}
+				<div class="card bg-base-100 shadow">
+					<div class="card-body">
+						<h2 class="card-title text-lg">Informazioni Aziendali</h2>
+
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div class="form-control">
+								<label class="label" for="businessName">
+									<span class="label-text">Ragione Sociale</span>
+								</label>
+								<input
+									type="text"
+									id="businessName"
+									bind:value={businessName}
+									class="input input-bordered"
+								/>
+							</div>
+
+							<div class="form-control">
+								<label class="label" for="vatNumber">
+									<span class="label-text">Partita IVA</span>
+								</label>
+								<input
+									type="text"
+									id="vatNumber"
+									bind:value={vatNumber}
+									class="input input-bordered"
+								/>
+							</div>
+						</div>
+
+						<div class="form-control mt-4">
+							<label class="label cursor-pointer justify-start gap-3">
+								<input
+									type="checkbox"
+									bind:checked={hasMultipleLocations}
+									class="checkbox checkbox-primary"
+								/>
+								<span class="label-text">Ho più sedi di ritiro</span>
+							</label>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Social Links -->
+			<div class="card bg-base-100 shadow">
+				<div class="card-body">
+					<h2 class="card-title text-lg">Social Media</h2>
+
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div class="form-control">
+							<label class="label" for="instagram">
+								<span class="label-text">Instagram</span>
+							</label>
+							<input
+								type="text"
+								id="instagram"
+								bind:value={socialLinks.instagram}
+								class="input input-bordered"
+								placeholder="@username"
+							/>
+						</div>
+
+						<div class="form-control">
+							<label class="label" for="facebook">
+								<span class="label-text">Facebook</span>
+							</label>
+							<input
+								type="text"
+								id="facebook"
+								bind:value={socialLinks.facebook}
+								class="input input-bordered"
+								placeholder="facebook.com/..."
+							/>
+						</div>
+
+						<div class="form-control">
+							<label class="label" for="website">
+								<span class="label-text">Sito Web</span>
+							</label>
+							<input
+								type="url"
+								id="website"
+								bind:value={socialLinks.website}
+								class="input input-bordered"
+								placeholder="https://..."
+							/>
+						</div>
+
+						<div class="form-control">
+							<label class="label" for="linkedin">
+								<span class="label-text">LinkedIn</span>
+							</label>
+							<input
+								type="text"
+								id="linkedin"
+								bind:value={socialLinks.linkedin}
+								class="input input-bordered"
+								placeholder="linkedin.com/in/..."
+							/>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Save Button -->
+			<button
+				class="btn btn-primary w-full md:w-auto"
+				on:click={saveProfile}
+				disabled={saving}
+			>
+				{#if saving}
+					<span class="loading loading-spinner"></span>
+				{/if}
+				Salva Modifiche
+			</button>
+
+			<!-- Locations Section -->
+			{#if $isBusiness || locations.length > 0}
+				<div class="card bg-base-100 shadow">
+					<div class="card-body">
+						<div class="flex justify-between items-center">
+							<h2 class="card-title text-lg">Sedi di Ritiro</h2>
+							<button
+								class="btn btn-primary btn-sm"
+								on:click={() => showLocationForm = !showLocationForm}
+							>
+								{showLocationForm ? 'Annulla' : '+ Aggiungi Sede'}
+							</button>
+						</div>
+
+						{#if showLocationForm}
+							<div class="bg-base-200 p-4 rounded-lg mt-4 space-y-4">
+								<h3 class="font-semibold">Nuova Sede</h3>
+
+								<div class="form-control">
+									<label class="label"><span class="label-text">Nome Sede *</span></label>
+									<input
+										type="text"
+										bind:value={newLocation.name}
+										class="input input-bordered"
+										placeholder="es. Sede Centrale"
+									/>
+								</div>
+
+								<div class="form-control">
+									<label class="label"><span class="label-text">Indirizzo *</span></label>
+									<input
+										type="text"
+										bind:value={newLocation.address_street}
+										class="input input-bordered"
+										placeholder="Via Roma 1"
+									/>
+								</div>
+
+								<div class="grid grid-cols-3 gap-4">
+									<div class="form-control">
+										<label class="label"><span class="label-text">Città *</span></label>
+										<input
+											type="text"
+											bind:value={newLocation.address_city}
+											class="input input-bordered"
+										/>
+									</div>
+									<div class="form-control">
+										<label class="label"><span class="label-text">Provincia</span></label>
+										<input
+											type="text"
+											bind:value={newLocation.address_province}
+											class="input input-bordered"
+											maxlength="2"
+										/>
+									</div>
+									<div class="form-control">
+										<label class="label"><span class="label-text">CAP *</span></label>
+										<input
+											type="text"
+											bind:value={newLocation.address_postal_code}
+											class="input input-bordered"
+											maxlength="5"
+										/>
+									</div>
+								</div>
+
+								<div class="grid grid-cols-2 gap-4">
+									<div class="form-control">
+										<label class="label"><span class="label-text">Telefono</span></label>
+										<input
+											type="tel"
+											bind:value={newLocation.phone}
+											class="input input-bordered"
+										/>
+									</div>
+									<div class="form-control">
+										<label class="label"><span class="label-text">Email</span></label>
+										<input
+											type="email"
+											bind:value={newLocation.email}
+											class="input input-bordered"
+										/>
+									</div>
+								</div>
+
+								<div class="form-control">
+									<label class="label cursor-pointer justify-start gap-3">
+										<input
+											type="checkbox"
+											bind:checked={newLocation.is_primary}
+											class="checkbox checkbox-primary"
+										/>
+										<span class="label-text">Sede principale</span>
+									</label>
+								</div>
+
+								<button class="btn btn-primary" on:click={addLocation} disabled={saving}>
+									{#if saving}<span class="loading loading-spinner"></span>{/if}
+									Aggiungi Sede
+								</button>
+							</div>
+						{/if}
+
+						{#if locations.length > 0}
+							<div class="space-y-4 mt-4">
+								{#each locations as location}
+									<div class="border rounded-lg p-4 flex justify-between items-start">
+										<div>
+											<div class="font-semibold flex items-center gap-2">
+												{location.name}
+												{#if location.is_primary}
+													<span class="badge badge-primary badge-sm">Principale</span>
+												{/if}
+											</div>
+											<p class="text-sm text-base-content/70">
+												{location.address_street}, {location.address_postal_code} {location.address_city}
+												{#if location.address_province}({location.address_province}){/if}
+											</p>
+											{#if location.phone}
+												<p class="text-sm">Tel: {location.phone}</p>
+											{/if}
+										</div>
+										<button
+											class="btn btn-ghost btn-sm text-error"
+											on:click={() => deleteLocation(location.id, location.name)}
+										>
+											Elimina
+										</button>
+									</div>
+								{/each}
+							</div>
+						{:else if !showLocationForm}
+							<p class="text-base-content/60 text-center py-4">
+								Nessuna sede configurata
+							</p>
+						{/if}
+					</div>
+				</div>
+			{/if}
+
+			<!-- Eco Stats -->
+			{#if $currentUser}
+				<div class="card bg-base-100 shadow">
+					<div class="card-body">
+						<h2 class="card-title text-lg">Le Tue Statistiche Eco</h2>
+						<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+							<div class="stat bg-success/10 rounded-lg p-4">
+								<div class="stat-title text-sm">CO2 Risparmiata</div>
+								<div class="stat-value text-success text-xl">{$currentUser.total_co2_saved.toFixed(1)} kg</div>
+							</div>
+							<div class="stat bg-info/10 rounded-lg p-4">
+								<div class="stat-title text-sm">Acqua Risparmiata</div>
+								<div class="stat-value text-info text-xl">{$currentUser.total_water_saved.toFixed(0)} L</div>
+							</div>
+							<div class="stat bg-warning/10 rounded-lg p-4">
+								<div class="stat-title text-sm">Eco Crediti</div>
+								<div class="stat-value text-warning text-xl">{$currentUser.eco_credits}</div>
+							</div>
+							<div class="stat bg-primary/10 rounded-lg p-4">
+								<div class="stat-title text-sm">Livello</div>
+								<div class="stat-value text-primary text-xl">{$currentUser.eco_level}</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
+</div>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { api, type CreateProductRequest } from '$lib/api';
-	import { isAuthenticated, isSeller } from '$lib/stores/auth';
+	import { isAuthenticated, currentUser } from '$lib/stores/auth';
 
 	let loading = false;
 	let error = '';
@@ -21,11 +21,15 @@
 	let city = '';
 	let province = '';
 
-	// Redirect if not seller
+	// Redirect if not authenticated
 	$: if ($isAuthenticated !== undefined && !$isAuthenticated) {
 		goto('/login');
-	} else if ($isSeller !== undefined && !$isSeller) {
-		goto('/');
+	}
+
+	// Pre-fill city from user profile
+	$: if ($currentUser && !city) {
+		city = $currentUser.city || '';
+		province = $currentUser.province || '';
 	}
 
 	async function handleSubmit() {

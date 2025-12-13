@@ -17,6 +17,7 @@ import (
 	"github.com/gecogreen/backend/internal/database"
 	"github.com/gecogreen/backend/internal/handlers"
 	"github.com/gecogreen/backend/internal/middleware"
+	"github.com/gecogreen/backend/internal/moderation"
 	"github.com/gecogreen/backend/internal/repository"
 	"github.com/gecogreen/backend/internal/storage"
 )
@@ -46,6 +47,7 @@ func main() {
 	// Repositories
 	userRepo := repository.NewUserRepository(db.Pool)
 	productRepo := repository.NewProductRepository(db.Pool)
+	imageReviewRepo := repository.NewImageReviewRepository(db.Pool)
 
 	// JWT
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret)
@@ -54,24 +56,48 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(db)
 	authHandler := handlers.NewAuthHandler(userRepo, jwtManager)
 	productHandler := handlers.NewProductHandler(productRepo)
+	adminHandler := handlers.NewAdminHandler(userRepo, imageReviewRepo)
 
 	// Optional: R2 Storage (for image uploads)
 	var uploadHandler *handlers.UploadHandler
+	var profileHandler *handlers.ProfileHandler
+	var r2Storage *storage.R2Storage
+
 	if cfg.R2AccountID != "" && cfg.R2AccessKeyID != "" {
-		r2Storage, err := storage.NewR2Storage(cfg.R2AccountID, cfg.R2AccessKeyID, cfg.R2SecretKey, cfg.R2BucketName)
+		r2Storage, err = storage.NewR2Storage(cfg.R2AccountID, cfg.R2AccessKeyID, cfg.R2SecretKey, cfg.R2BucketName)
 		if err != nil {
 			log.Printf("⚠️  R2 Storage not configured: %v", err)
 		} else {
 			uploadHandler = handlers.NewUploadHandler(r2Storage, productRepo)
+			profileHandler = handlers.NewProfileHandler(userRepo, r2Storage)
 			log.Println("✅ Connected to Cloudflare R2")
 		}
 	} else {
 		log.Println("⚠️  R2 Storage not configured (uploads disabled)")
+		profileHandler = handlers.NewProfileHandler(userRepo, nil)
+	}
+
+	// Optional: Google Cloud Vision OCR
+	var ocrService *moderation.OCRService
+	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
+		ocrService, err = moderation.NewOCRService(ctx)
+		if err != nil {
+			log.Printf("⚠️  OCR Service not configured: %v", err)
+		} else {
+			defer ocrService.Close()
+			log.Println("✅ Connected to Google Cloud Vision")
+			// Connect OCR to upload handler
+			if uploadHandler != nil {
+				uploadHandler.SetModerationServices(ocrService, imageReviewRepo)
+			}
+		}
+	} else {
+		log.Println("⚠️  OCR Service not configured (GOOGLE_APPLICATION_CREDENTIALS not set)")
 	}
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
-		AppName:      "GecoGreen API v0.1.0",
+		AppName:      "GecoGreen API v0.2.0",
 		ErrorHandler: customErrorHandler,
 		BodyLimit:    10 * 1024 * 1024,
 	})
@@ -98,10 +124,11 @@ func main() {
 	}))
 
 	authMiddleware := middleware.AuthMiddleware(jwtManager, userRepo)
+	adminMiddleware := middleware.AdminOnly(userRepo)
 
 	// Routes
 	app.Get("/", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"name": "GecoGreen API", "version": "0.1.0"})
+		return c.JSON(fiber.Map{"name": "GecoGreen API", "version": "0.2.0"})
 	})
 	app.Get("/ping", healthHandler.Ping)
 	app.Get("/health", healthHandler.Check)
@@ -115,6 +142,18 @@ func main() {
 	authRoutes.Post("/login", authHandler.Login)
 	authRoutes.Post("/refresh", authHandler.Refresh)
 	authRoutes.Get("/me", authMiddleware, authHandler.Me)
+
+	// Profile
+	profile := v1.Group("/profile", authMiddleware)
+	profile.Get("/", profileHandler.GetProfile)
+	profile.Put("/", profileHandler.UpdateProfile)
+	profile.Get("/locations", profileHandler.GetLocations)
+	profile.Post("/locations", profileHandler.CreateLocation)
+	profile.Delete("/locations/:id", profileHandler.DeleteLocation)
+	if r2Storage != nil {
+		profile.Post("/avatar", profileHandler.UploadAvatar)
+		profile.Post("/business-photos", profileHandler.UploadBusinessPhoto)
+	}
 
 	// Products
 	products := v1.Group("/products")
@@ -132,6 +171,14 @@ func main() {
 		upload.Post("/product/:product_id/expiry-photo", authMiddleware, uploadHandler.UploadExpiryPhoto)
 		upload.Post("/presign", authMiddleware, uploadHandler.GetPresignedURL)
 	}
+
+	// Admin routes
+	admin := v1.Group("/admin", authMiddleware, adminMiddleware)
+	admin.Get("/reviews", adminHandler.GetPendingReviews)
+	admin.Get("/reviews/stats", adminHandler.GetReviewStats)
+	admin.Get("/reviews/:id", adminHandler.GetReviewDetail)
+	admin.Post("/reviews/:id/approve", adminHandler.ApproveReview)
+	admin.Post("/reviews/:id/reject", adminHandler.RejectReview)
 
 	// 404
 	app.Use(func(c *fiber.Ctx) error {

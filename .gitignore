@@ -58,3 +58,4 @@ coverage/
 *.key
 credentials.json
 secrets.json
+CREDENZIALI_PRODUZIONE.txt

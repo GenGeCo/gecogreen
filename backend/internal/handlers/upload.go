@@ -2,20 +2,24 @@ package handlers
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
 	"github.com/gecogreen/backend/internal/models"
+	"github.com/gecogreen/backend/internal/moderation"
 	"github.com/gecogreen/backend/internal/repository"
 	"github.com/gecogreen/backend/internal/storage"
 )
 
 // UploadHandler handles file upload endpoints
 type UploadHandler struct {
-	storage     *storage.R2Storage
-	productRepo *repository.ProductRepository
+	storage         *storage.R2Storage
+	productRepo     *repository.ProductRepository
+	imageReviewRepo *repository.ImageReviewRepository
+	ocrService      *moderation.OCRService
 }
 
 // NewUploadHandler creates a new upload handler
@@ -24,6 +28,12 @@ func NewUploadHandler(storage *storage.R2Storage, productRepo *repository.Produc
 		storage:     storage,
 		productRepo: productRepo,
 	}
+}
+
+// SetModerationServices sets the moderation services (optional)
+func (h *UploadHandler) SetModerationServices(ocrService *moderation.OCRService, imageReviewRepo *repository.ImageReviewRepository) {
+	h.ocrService = ocrService
+	h.imageReviewRepo = imageReviewRepo
 }
 
 // UploadProductImage handles POST /api/v1/upload/product/:product_id/image
@@ -55,7 +65,7 @@ func (h *UploadHandler) UploadProductImage(c *fiber.Ctx) error {
 		})
 	}
 
-	if product.SellerID != user.ID && !user.IsAdmin() {
+	if product.SellerID != user.ID && !user.IsAdmin {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Non sei autorizzato a modificare questo prodotto",
 		})
@@ -102,6 +112,11 @@ func (h *UploadHandler) UploadProductImage(c *fiber.Ctx) error {
 		})
 	}
 
+	// Run OCR moderation if service is available
+	if h.ocrService != nil && h.imageReviewRepo != nil {
+		go h.moderateImage(user.ID, &productID, imageURL, "PRODUCT")
+	}
+
 	// Save to database
 	if err := h.productRepo.AddImage(ctx, productID, imageURL); err != nil {
 		// Try to delete the uploaded file
@@ -139,7 +154,7 @@ func (h *UploadHandler) UploadExpiryPhoto(c *fiber.Ctx) error {
 		})
 	}
 
-	if product.SellerID != user.ID && !user.IsAdmin() {
+	if product.SellerID != user.ID && !user.IsAdmin {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Non autorizzato",
 		})
@@ -180,8 +195,6 @@ func (h *UploadHandler) UploadExpiryPhoto(c *fiber.Ctx) error {
 			"error": "Errore nel caricamento",
 		})
 	}
-
-	// TODO: Update product with expiry_photo_url
 
 	return c.JSON(fiber.Map{
 		"url": imageURL,
@@ -225,4 +238,47 @@ func (h *UploadHandler) GetPresignedURL(c *fiber.Ctx) error {
 		"upload_url": presignedURL,
 		"public_url": publicURL,
 	})
+}
+
+// moderateImage runs OCR on the uploaded image and queues it for review if suspicious
+func (h *UploadHandler) moderateImage(userID uuid.UUID, productID *uuid.UUID, imageURL string, imageType string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	result, err := h.ocrService.AnalyzeImageFromURL(ctx, imageURL)
+	if err != nil {
+		// Log error but don't fail - moderation is optional
+		return
+	}
+
+	// If suspicious, add to review queue
+	if result.IsSuspicious {
+		review := &models.ImageReview{
+			UserID:        userID,
+			ProductID:     productID,
+			ImageURL:      imageURL,
+			ImageType:     imageType,
+			DetectedText:  result.DetectedText,
+			DetectedPhone: result.DetectedPhone,
+			DetectedEmail: result.DetectedEmail,
+			DetectedURL:   result.DetectedURL,
+			Confidence:    result.Confidence,
+		}
+		_ = h.imageReviewRepo.Create(ctx, review)
+	}
+}
+
+// UploadWithModeration uploads a file and runs moderation
+func (h *UploadHandler) UploadWithModeration(ctx context.Context, reader io.Reader, filename, contentType, folder string, userID uuid.UUID, productID *uuid.UUID, imageType string) (string, error) {
+	imageURL, err := h.storage.Upload(ctx, reader, filename, contentType, folder)
+	if err != nil {
+		return "", err
+	}
+
+	// Run moderation asynchronously
+	if h.ocrService != nil && h.imageReviewRepo != nil {
+		go h.moderateImage(userID, productID, imageURL, imageType)
+	}
+
+	return imageURL, nil
 }

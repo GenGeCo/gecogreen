@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { api, type Product } from '$lib/api';
-	import { isAuthenticated, isSeller, currentUser } from '$lib/stores/auth';
+	import { isAuthenticated, currentUser } from '$lib/stores/auth';
 
 	let product: Product | null = null;
 	let loading = true;
@@ -217,7 +217,7 @@
 						</div>
 						<div class="flex-1">
 							{#if $isAuthenticated}
-								{#if $isSeller && $currentUser?.id === product.seller_id}
+								{#if $currentUser?.id === product.seller_id}
 									<a href="/seller/products/{product.id}/edit" class="btn btn-primary w-full">
 										Modifica Prodotto
 									</a>

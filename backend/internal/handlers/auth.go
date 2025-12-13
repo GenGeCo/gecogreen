@@ -27,26 +27,46 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Dati non validi"})
 	}
 
+	// Validate email
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 	if req.Email == "" || !strings.Contains(req.Email, "@") {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Email non valida"})
 	}
 
+	// Validate password
 	if !auth.ValidatePassword(req.Password) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Password deve essere almeno 8 caratteri"})
 	}
 
-	if req.Role != models.RoleBuyer && req.Role != models.RoleSeller {
-		req.Role = models.RoleBuyer
-	}
-
+	// Validate name
 	if req.FirstName == "" || req.LastName == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Nome e cognome sono obbligatori"})
+	}
+
+	// Validate city (required for all)
+	if req.City == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Città obbligatoria"})
+	}
+
+	// Validate account type - default to PRIVATE
+	if req.AccountType == "" {
+		req.AccountType = models.AccountPrivate
+	}
+
+	// Validate business fields
+	if req.AccountType == models.AccountBusiness {
+		if req.BusinessName == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Ragione sociale obbligatoria per account aziendali"})
+		}
+		if req.VATNumber == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Partita IVA obbligatoria per account aziendali"})
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), 5*time.Second)
 	defer cancel()
 
+	// Check if email exists
 	exists, err := h.userRepo.EmailExists(ctx, req.Email)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore del server"})
@@ -55,25 +75,49 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Email già registrata"})
 	}
 
+	// Hash password
 	hashedPassword, err := auth.HashPassword(req.Password)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore del server"})
 	}
 
+	// Create user
 	user := &models.User{
-		Email:        req.Email,
-		PasswordHash: hashedPassword,
-		Roles:        []models.UserRole{req.Role},
-		FirstName:    req.FirstName,
-		LastName:     req.LastName,
+		Email:                req.Email,
+		PasswordHash:         hashedPassword,
+		FirstName:            req.FirstName,
+		LastName:             req.LastName,
+		AccountType:          req.AccountType,
+		BusinessName:         req.BusinessName,
+		VATNumber:            req.VATNumber,
+		HasMultipleLocations: req.HasMultipleLocations,
+		City:                 req.City,
+		Province:             req.Province,
+		PostalCode:           req.PostalCode,
 	}
 
 	if err := h.userRepo.Create(ctx, user); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore nella creazione account"})
 	}
 
-	accessToken, _ := h.jwtManager.GenerateAccessToken(user.ID, user.Email, string(user.Roles[0]))
-	refreshToken, _ := h.jwtManager.GenerateRefreshToken(user.ID, user.Email, string(user.Roles[0]))
+	// Create primary location if address provided
+	if req.AddressStreet != "" {
+		loc := &models.Location{
+			UserID:          user.ID,
+			Name:            "Sede principale",
+			IsPrimary:       true,
+			AddressStreet:   req.AddressStreet,
+			AddressCity:     req.City,
+			AddressProvince: req.Province,
+			AddressPostal:   req.PostalCode,
+		}
+		// Don't fail registration if location creation fails
+		_ = h.userRepo.CreateLocation(ctx, loc)
+	}
+
+	// Generate tokens
+	accessToken, _ := h.jwtManager.GenerateAccessToken(user.ID, user.Email, string(user.AccountType))
+	refreshToken, _ := h.jwtManager.GenerateRefreshToken(user.ID, user.Email, string(user.AccountType))
 
 	return c.Status(fiber.StatusCreated).JSON(models.AuthResponse{
 		User: *user, AccessToken: accessToken, RefreshToken: refreshToken, ExpiresIn: h.jwtManager.GetAccessTokenExpiry(),
@@ -106,13 +150,8 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	_ = h.userRepo.UpdateLastLogin(ctx, user.ID)
 
-	role := string(models.RoleBuyer)
-	if len(user.Roles) > 0 {
-		role = string(user.Roles[0])
-	}
-
-	accessToken, _ := h.jwtManager.GenerateAccessToken(user.ID, user.Email, role)
-	refreshToken, _ := h.jwtManager.GenerateRefreshToken(user.ID, user.Email, role)
+	accessToken, _ := h.jwtManager.GenerateAccessToken(user.ID, user.Email, string(user.AccountType))
+	refreshToken, _ := h.jwtManager.GenerateRefreshToken(user.ID, user.Email, string(user.AccountType))
 
 	return c.JSON(models.AuthResponse{
 		User: *user, AccessToken: accessToken, RefreshToken: refreshToken, ExpiresIn: h.jwtManager.GetAccessTokenExpiry(),
@@ -146,13 +185,8 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Account non attivo"})
 	}
 
-	role := string(models.RoleBuyer)
-	if len(user.Roles) > 0 {
-		role = string(user.Roles[0])
-	}
-
-	accessToken, _ := h.jwtManager.GenerateAccessToken(user.ID, user.Email, role)
-	refreshToken, _ := h.jwtManager.GenerateRefreshToken(user.ID, user.Email, role)
+	accessToken, _ := h.jwtManager.GenerateAccessToken(user.ID, user.Email, string(user.AccountType))
+	refreshToken, _ := h.jwtManager.GenerateRefreshToken(user.ID, user.Email, string(user.AccountType))
 
 	return c.JSON(models.AuthResponse{
 		User: *user, AccessToken: accessToken, RefreshToken: refreshToken, ExpiresIn: h.jwtManager.GetAccessTokenExpiry(),

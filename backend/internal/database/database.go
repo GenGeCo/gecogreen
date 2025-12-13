@@ -111,33 +111,125 @@ func (db *DB) Migrate(ctx context.Context) error {
 		return fmt.Errorf("failed to check migration status: %w", err)
 	}
 
-	if exists {
-		log.Println("✅ Database schema already exists, skipping migration")
-		return nil
+	if !exists {
+		log.Println("📦 Creating initial database schema...")
+		tx, err := db.Pool.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction: %w", err)
+		}
+		defer tx.Rollback(ctx)
+
+		_, err = tx.Exec(ctx, migrationSQL)
+		if err != nil {
+			return fmt.Errorf("failed to execute migration: %w", err)
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			return fmt.Errorf("failed to commit migration: %w", err)
+		}
+		log.Println("✅ Initial schema created")
 	}
 
-	log.Println("📦 Creating database schema...")
-
-	// Execute migration in a transaction
-	tx, err := db.Pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	// Execute the schema
-	_, err = tx.Exec(ctx, migrationSQL)
-	if err != nil {
-		return fmt.Errorf("failed to execute migration: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit migration: %w", err)
+	// Run incremental migrations
+	if err := db.runIncrementalMigrations(ctx); err != nil {
+		return fmt.Errorf("failed to run incremental migrations: %w", err)
 	}
 
 	log.Println("✅ Database migration completed successfully")
 	return nil
 }
+
+// runIncrementalMigrations runs migrations that add new features
+func (db *DB) runIncrementalMigrations(ctx context.Context) error {
+	// Migration 1: Add account_type and business fields
+	var hasAccountType bool
+	err := db.Pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT FROM information_schema.columns
+			WHERE table_name = 'users' AND column_name = 'account_type'
+		)
+	`).Scan(&hasAccountType)
+	if err != nil {
+		return err
+	}
+
+	if !hasAccountType {
+		log.Println("📦 Adding account_type and business fields...")
+		_, err = db.Pool.Exec(ctx, migrationV2SQL)
+		if err != nil {
+			return fmt.Errorf("migration v2 failed: %w", err)
+		}
+		log.Println("✅ Migration v2 completed")
+	}
+
+	return nil
+}
+
+// Migration V2: Account type, business fields, social links, image moderation
+const migrationV2SQL = `
+-- Account type enum
+DO $$ BEGIN
+    CREATE TYPE account_type AS ENUM ('PRIVATE', 'BUSINESS');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Image moderation status
+DO $$ BEGIN
+    CREATE TYPE moderation_status AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Add new columns to users
+ALTER TABLE users ADD COLUMN IF NOT EXISTS account_type account_type DEFAULT 'PRIVATE';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS business_name VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS vat_number VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS has_multiple_locations BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS social_links JSONB DEFAULT '{}';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS business_photos JSONB DEFAULT '[]';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+
+-- Update seller_locations to work for all users (rename seller_id to user_id conceptually but keep for compatibility)
+-- Add user_id as alias
+DO $$ BEGIN
+    ALTER TABLE seller_locations RENAME COLUMN seller_id TO user_id;
+EXCEPTION
+    WHEN undefined_column THEN null;
+END $$;
+
+-- Image moderation queue
+CREATE TABLE IF NOT EXISTS image_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+    image_url VARCHAR(500) NOT NULL,
+    image_type VARCHAR(20) NOT NULL, -- 'PRODUCT', 'PROFILE', 'BUSINESS'
+
+    -- OCR results
+    detected_text TEXT,
+    detected_phone BOOLEAN DEFAULT FALSE,
+    detected_email BOOLEAN DEFAULT FALSE,
+    detected_url BOOLEAN DEFAULT FALSE,
+    confidence_score DECIMAL(5,4),
+
+    -- Moderation
+    status moderation_status DEFAULT 'PENDING',
+    reviewed_by UUID REFERENCES users(id),
+    reviewed_at TIMESTAMP,
+    rejection_reason TEXT,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for pending reviews
+CREATE INDEX IF NOT EXISTS idx_image_reviews_status ON image_reviews(status);
+CREATE INDEX IF NOT EXISTS idx_image_reviews_user ON image_reviews(user_id);
+
+-- Index for business accounts
+CREATE INDEX IF NOT EXISTS idx_users_account_type ON users(account_type);
+CREATE INDEX IF NOT EXISTS idx_users_vat ON users(vat_number);
+`
 
 const migrationSQL = `
 -- ============================================

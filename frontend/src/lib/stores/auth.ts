@@ -1,5 +1,5 @@
 import { writable, derived } from 'svelte/store';
-import { api, type User } from '$lib/api';
+import { api, type User, type RegisterRequest } from '$lib/api';
 import { browser } from '$app/environment';
 
 interface AuthState {
@@ -52,13 +52,7 @@ function createAuthStore() {
 			}
 		},
 
-		async register(data: {
-			email: string;
-			password: string;
-			first_name: string;
-			last_name: string;
-			role: 'BUYER' | 'SELLER';
-		}) {
+		async register(data: RegisterRequest) {
 			update((s) => ({ ...s, loading: true }));
 			try {
 				const response = await api.register(data);
@@ -78,6 +72,11 @@ function createAuthStore() {
 				localStorage.removeItem('refresh_token');
 			}
 			set({ user: null, loading: false, initialized: true });
+		},
+
+		// Update user data after profile changes
+		updateUser(user: User) {
+			update((s) => ({ ...s, user }));
 		}
 	};
 }
@@ -85,6 +84,6 @@ function createAuthStore() {
 export const auth = createAuthStore();
 
 export const isAuthenticated = derived(auth, ($auth) => !!$auth.user);
-export const isSeller = derived(auth, ($auth) => $auth.user?.roles.includes('SELLER') || $auth.user?.roles.includes('ADMIN'));
-export const isAdmin = derived(auth, ($auth) => $auth.user?.roles.includes('ADMIN'));
+export const isBusiness = derived(auth, ($auth) => $auth.user?.account_type === 'BUSINESS');
+export const isAdmin = derived(auth, ($auth) => $auth.user?.is_admin === true);
 export const currentUser = derived(auth, ($auth) => $auth.user);

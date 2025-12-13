@@ -54,22 +54,24 @@ func AuthMiddleware(jwtManager *auth.JWTManager, userRepo *repository.UserReposi
 	}
 }
 
-func RoleMiddleware(allowedRoles ...models.UserRole) fiber.Handler {
+// AdminOnly middleware - requires user to be an admin
+func AdminOnly(userRepo *repository.UserRepository) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		user := c.Locals("user").(*models.User)
-		for _, role := range allowedRoles {
-			if user.HasRole(role) {
-				return c.Next()
-			}
+		if !user.IsAdmin {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Solo amministratori"})
 		}
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Non autorizzato"})
+		return c.Next()
 	}
 }
 
-func SellerOnly() fiber.Handler {
-	return RoleMiddleware(models.RoleSeller, models.RoleAdmin)
-}
-
-func AdminOnly() fiber.Handler {
-	return RoleMiddleware(models.RoleAdmin)
+// BusinessOnly middleware - requires business account
+func BusinessOnly() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		user := c.Locals("user").(*models.User)
+		if !user.IsBusiness() {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Solo account aziendali"})
+		}
+		return c.Next()
+	}
 }

@@ -56,13 +56,7 @@ class ApiClient {
 	}
 
 	// Auth
-	async register(data: {
-		email: string;
-		password: string;
-		first_name: string;
-		last_name: string;
-		role: 'BUYER' | 'SELLER';
-	}) {
+	async register(data: RegisterRequest) {
 		return this.request<AuthResponse>('/auth/register', {
 			method: 'POST',
 			body: JSON.stringify(data)
@@ -85,6 +79,71 @@ class ApiClient {
 			method: 'POST',
 			body: JSON.stringify({ refresh_token: refreshToken })
 		});
+	}
+
+	// Profile
+	async getProfile() {
+		return this.request<{ user: User; locations: Location[] }>('/profile');
+	}
+
+	async updateProfile(data: Partial<UpdateProfileRequest>) {
+		return this.request<User>('/profile', {
+			method: 'PUT',
+			body: JSON.stringify(data)
+		});
+	}
+
+	async getLocations() {
+		return this.request<Location[]>('/profile/locations');
+	}
+
+	async createLocation(data: CreateLocationRequest) {
+		return this.request<Location>('/profile/locations', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		});
+	}
+
+	async deleteLocation(id: string) {
+		return this.request<{ success: boolean }>(`/profile/locations/${id}`, {
+			method: 'DELETE'
+		});
+	}
+
+	async uploadAvatar(file: File) {
+		const formData = new FormData();
+		formData.append('file', file);
+
+		const token = this.getToken();
+		const response = await fetch(`${API_BASE}/profile/avatar`, {
+			method: 'POST',
+			headers: token ? { Authorization: `Bearer ${token}` } : {},
+			body: formData
+		});
+
+		const data = await response.json();
+		if (!response.ok) {
+			throw new Error(data.error || 'Errore upload');
+		}
+		return data as { avatar_url: string };
+	}
+
+	async uploadBusinessPhoto(file: File) {
+		const formData = new FormData();
+		formData.append('file', file);
+
+		const token = this.getToken();
+		const response = await fetch(`${API_BASE}/profile/business-photos`, {
+			method: 'POST',
+			headers: token ? { Authorization: `Bearer ${token}` } : {},
+			body: formData
+		});
+
+		const data = await response.json();
+		if (!response.ok) {
+			throw new Error(data.error || 'Errore upload');
+		}
+		return data as { photo_url: string };
 	}
 
 	// Products
@@ -171,6 +230,15 @@ class ApiClient {
 export const api = new ApiClient();
 
 // Types
+export type AccountType = 'PRIVATE' | 'BUSINESS';
+
+export interface SocialLinks {
+	instagram?: string;
+	facebook?: string;
+	website?: string;
+	linkedin?: string;
+}
+
 export interface User {
 	id: string;
 	email: string;
@@ -178,12 +246,84 @@ export interface User {
 	last_name: string;
 	phone?: string;
 	city?: string;
-	roles: string[];
+	province?: string;
+	postal_code?: string;
+	account_type: AccountType;
+	business_name?: string;
+	vat_number?: string;
+	has_multiple_locations: boolean;
+	avatar_url?: string;
+	social_links?: SocialLinks;
+	business_photos?: string[];
 	status: string;
 	email_verified: boolean;
-	avatar_url?: string;
+	is_admin: boolean;
+	total_co2_saved: number;
+	total_water_saved: number;
+	eco_credits: number;
+	eco_level: string;
+	rating_avg: number;
+	rating_count: number;
 	created_at: string;
 	updated_at: string;
+}
+
+export interface Location {
+	id: string;
+	user_id: string;
+	name: string;
+	is_primary: boolean;
+	is_active: boolean;
+	address_street: string;
+	address_city: string;
+	address_province?: string;
+	address_postal_code: string;
+	phone?: string;
+	email?: string;
+	pickup_hours?: string;
+	pickup_instructions?: string;
+	created_at: string;
+}
+
+export interface RegisterRequest {
+	email: string;
+	password: string;
+	first_name: string;
+	last_name: string;
+	account_type: AccountType;
+	business_name?: string;
+	vat_number?: string;
+	has_multiple_locations?: boolean;
+	city: string;
+	province?: string;
+	postal_code?: string;
+	address_street?: string;
+}
+
+export interface UpdateProfileRequest {
+	first_name?: string;
+	last_name?: string;
+	phone?: string;
+	city?: string;
+	province?: string;
+	postal_code?: string;
+	business_name?: string;
+	vat_number?: string;
+	social_links?: SocialLinks;
+	has_multiple_locations?: boolean;
+}
+
+export interface CreateLocationRequest {
+	name: string;
+	address_street: string;
+	address_city: string;
+	address_province?: string;
+	address_postal_code: string;
+	phone?: string;
+	email?: string;
+	pickup_hours?: string;
+	pickup_instructions?: string;
+	is_primary?: boolean;
 }
 
 export interface AuthResponse {
@@ -198,7 +338,11 @@ export interface UserProfile {
 	first_name: string;
 	last_name: string;
 	avatar_url?: string;
-	roles?: string[];
+	account_type: AccountType;
+	business_name?: string;
+	city?: string;
+	rating_avg: number;
+	rating_count: number;
 	created_at: string;
 }
 
