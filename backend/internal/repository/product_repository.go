@@ -114,7 +114,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 			   p.dutch_decrease_amount, p.dutch_decrease_hours, p.dutch_min_price, p.dutch_started_at,
 			   COALESCE(p.city, ''), COALESCE(p.province, ''), COALESCE(p.postal_code, ''), p.latitude, p.longitude,
 			   p.images, p.status::text, p.view_count, p.favorite_count, p.created_at, p.updated_at,
-			   u.id, u.first_name, u.last_name, COALESCE(u.avatar_url, ''), u.roles::text[], u.created_at
+			   u.id, u.first_name, u.last_name, COALESCE(u.avatar_url, ''), u.created_at
 		FROM products p
 		JOIN users u ON p.seller_id = u.id
 		WHERE p.id = $1
@@ -124,7 +124,6 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 	seller := &models.UserProfile{}
 	var imagesJSON []byte
 	var listingType, shippingMethod, status string
-	var roles []string
 
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&product.ID, &product.SellerID, &product.CategoryID, &product.Title, &product.Description,
@@ -134,7 +133,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 		&product.DutchDecreaseAmount, &product.DutchDecreaseHours, &product.DutchMinPrice, &product.DutchStartedAt,
 		&product.City, &product.Province, &product.PostalCode, &product.Latitude, &product.Longitude,
 		&imagesJSON, &status, &product.ViewCount, &product.FavoriteCount, &product.CreatedAt, &product.UpdatedAt,
-		&seller.ID, &seller.FirstName, &seller.LastName, &seller.AvatarURL, &roles, &seller.CreatedAt,
+		&seller.ID, &seller.FirstName, &seller.LastName, &seller.AvatarURL, &seller.CreatedAt,
 	)
 
 	if err != nil {
@@ -148,9 +147,6 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 	product.ListingType = models.ListingType(listingType)
 	product.ShippingMethod = models.ShippingMethod(shippingMethod)
 	product.Status = models.ProductStatus(status)
-	for _, r := range roles {
-		seller.Roles = append(seller.Roles, models.UserRole(r))
-	}
 
 	// Parse images JSON
 	if imagesJSON != nil {
