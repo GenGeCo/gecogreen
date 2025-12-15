@@ -5,7 +5,8 @@
 
 	let loading = false;
 	let error = '';
-	let imageFiles: FileList | null = null;
+	let productImageFiles: FileList | null = null;
+	let expiryPhotoFile: FileList | null = null;
 	let uploadingImages = false;
 
 	// Form data
@@ -71,15 +72,25 @@
 
 			const product = await api.createProduct(productData);
 
-			// Upload images if any
-			if (imageFiles && imageFiles.length > 0) {
-				uploadingImages = true;
-				for (let i = 0; i < imageFiles.length && i < 5; i++) {
+			uploadingImages = true;
+
+			// Upload product images if any
+			if (productImageFiles && productImageFiles.length > 0) {
+				for (let i = 0; i < productImageFiles.length && i < 5; i++) {
 					try {
-						await api.uploadProductImage(product.id, imageFiles[i]);
+						await api.uploadProductImage(product.id, productImageFiles[i]);
 					} catch (e) {
-						console.error('Error uploading image:', e);
+						console.error('Error uploading product image:', e);
 					}
+				}
+			}
+
+			// Upload expiry photo if present
+			if (expiryPhotoFile && expiryPhotoFile.length > 0) {
+				try {
+					await api.uploadExpiryPhoto(product.id, expiryPhotoFile[0]);
+				} catch (e) {
+					console.error('Error uploading expiry photo:', e);
 				}
 			}
 
@@ -148,19 +159,54 @@
 				</div>
 
 				<div class="form-control">
-					<label class="label" for="images">
-						<span class="label-text">Immagini (max 5)</span>
+					<label class="label" for="productImages">
+						<span class="label-text">Foto Prodotto (max 5)</span>
 					</label>
 					<input
 						type="file"
-						id="images"
-						bind:files={imageFiles}
+						id="productImages"
+						bind:files={productImageFiles}
 						accept="image/*"
 						multiple
 						class="file-input file-input-bordered"
 					/>
 					<label class="label">
-						<span class="label-text-alt">JPG, PNG o WebP. Max 5MB per immagine.</span>
+						<span class="label-text-alt">Foto generali del prodotto. JPG, PNG o WebP. Max 5MB per foto.</span>
+					</label>
+				</div>
+			</div>
+		</div>
+
+		<!-- Expiry Information -->
+		<div class="card bg-base-100 shadow">
+			<div class="card-body">
+				<h2 class="card-title text-lg">Scadenza</h2>
+
+				<div class="form-control">
+					<label class="label" for="expiryDate">
+						<span class="label-text">Data di Scadenza</span>
+					</label>
+					<input
+						type="date"
+						id="expiryDate"
+						bind:value={expiryDate}
+						class="input input-bordered w-48"
+					/>
+				</div>
+
+				<div class="form-control">
+					<label class="label" for="expiryPhoto">
+						<span class="label-text">Foto Scadenza</span>
+					</label>
+					<input
+						type="file"
+						id="expiryPhoto"
+						bind:files={expiryPhotoFile}
+						accept="image/*"
+						class="file-input file-input-bordered"
+					/>
+					<label class="label">
+						<span class="label-text-alt">Foto che mostra chiaramente la data di scadenza sul prodotto. Max 5MB.</span>
 					</label>
 				</div>
 			</div>
@@ -243,18 +289,6 @@
 						class="input input-bordered w-32"
 						min="1"
 						required
-					/>
-				</div>
-
-				<div class="form-control">
-					<label class="label" for="expiryDate">
-						<span class="label-text">Data di Scadenza</span>
-					</label>
-					<input
-						type="date"
-						id="expiryDate"
-						bind:value={expiryDate}
-						class="input input-bordered w-48"
 					/>
 				</div>
 			</div>

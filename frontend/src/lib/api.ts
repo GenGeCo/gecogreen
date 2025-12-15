@@ -225,6 +225,24 @@ class ApiClient {
 		}
 		return data as { url: string };
 	}
+
+	async uploadExpiryPhoto(productId: string, file: File) {
+		const formData = new FormData();
+		formData.append('image', file);
+
+		const token = this.getToken();
+		const response = await fetch(`${API_BASE}/upload/product/${productId}/expiry-photo`, {
+			method: 'POST',
+			headers: token ? { Authorization: `Bearer ${token}` } : {},
+			body: formData
+		});
+
+		const data = await response.json();
+		if (!response.ok) {
+			throw new Error(data.error || 'Errore upload foto scadenza');
+		}
+		return data as { url: string };
+	}
 }
 
 export const api = new ApiClient();
