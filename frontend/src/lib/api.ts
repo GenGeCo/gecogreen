@@ -364,6 +364,8 @@ export interface UserProfile {
 	created_at: string;
 }
 
+export type QuantityUnit = 'PIECE' | 'KG' | 'G' | 'L' | 'ML' | 'CUSTOM';
+
 export interface Product {
 	id: string;
 	seller_id: string;
@@ -373,14 +375,20 @@ export interface Product {
 	price: number;
 	original_price?: number;
 	listing_type: 'SALE' | 'GIFT';
-	shipping_method: 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES' | 'PLATFORM_MANAGED';
+	shipping_method: 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES' | 'PLATFORM_MANAGED' | 'DIGITAL_FORWARDERS';
 	shipping_cost: number;
 	quantity: number;
 	quantity_available: number;
+	quantity_unit: QuantityUnit;
+	quantity_unit_custom?: string;
 	expiry_date?: string;
+	expiry_photo_url?: string;
 	is_dutch_auction: boolean;
 	dutch_start_price?: number;
+	dutch_decrease_amount?: number;
+	dutch_decrease_hours?: number;
 	dutch_min_price?: number;
+	dutch_started_at?: string;
 	city: string;
 	province: string;
 	images: string[];
@@ -406,9 +414,11 @@ export interface CreateProductRequest {
 	price: number;
 	original_price?: number;
 	quantity: number;
+	quantity_unit?: QuantityUnit;
+	quantity_unit_custom?: string;
 	category_id?: string;
 	listing_type?: 'SALE' | 'GIFT';
-	shipping_method?: 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES';
+	shipping_method?: 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES' | 'DIGITAL_FORWARDERS';
 	shipping_cost?: number;
 	expiry_date?: string;
 	is_dutch_auction?: boolean;

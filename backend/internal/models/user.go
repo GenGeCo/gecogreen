@@ -48,6 +48,17 @@ type User struct {
 	VATNumber            string      `json:"vat_number,omitempty"`
 	HasMultipleLocations bool        `json:"has_multiple_locations"`
 
+	// Billing info
+	FiscalCode        string `json:"fiscal_code,omitempty"`         // Codice Fiscale (Italia)
+	SDICode           string `json:"sdi_code,omitempty"`            // Codice Univoco SDI
+	PECEmail          string `json:"pec_email,omitempty"`           // PEC per fatturazione elettronica
+	EUVatID           string `json:"eu_vat_id,omitempty"`           // VAT ID europeo
+	BillingAddress    string `json:"billing_address,omitempty"`     // Indirizzo fatturazione
+	BillingCity       string `json:"billing_city,omitempty"`        // Città fatturazione
+	BillingProvince   string `json:"billing_province,omitempty"`    // Provincia fatturazione
+	BillingPostalCode string `json:"billing_postal_code,omitempty"` // CAP fatturazione
+	BillingCountry    string `json:"billing_country,omitempty"`     // Paese fatturazione (ISO 3166-1)
+
 	// Profile
 	AvatarURL      string      `json:"avatar_url,omitempty"`
 	SocialLinks    SocialLinks `json:"social_links,omitempty"`
@@ -202,16 +213,28 @@ type RefreshRequest struct {
 
 // UpdateProfileRequest for updating user profile
 type UpdateProfileRequest struct {
-	FirstName      *string      `json:"first_name,omitempty"`
-	LastName       *string      `json:"last_name,omitempty"`
-	Phone          *string      `json:"phone,omitempty"`
-	City           *string      `json:"city,omitempty"`
-	Province       *string      `json:"province,omitempty"`
-	PostalCode     *string      `json:"postal_code,omitempty"`
-	BusinessName   *string      `json:"business_name,omitempty"`
-	VATNumber      *string      `json:"vat_number,omitempty"`
-	SocialLinks    *SocialLinks `json:"social_links,omitempty"`
-	HasMultipleLocations *bool  `json:"has_multiple_locations,omitempty"`
+	FirstName            *string      `json:"first_name,omitempty"`
+	LastName             *string      `json:"last_name,omitempty"`
+	Phone                *string      `json:"phone,omitempty"`
+	City                 *string      `json:"city,omitempty"`
+	Province             *string      `json:"province,omitempty"`
+	PostalCode           *string      `json:"postal_code,omitempty"`
+	AccountType          *AccountType `json:"account_type,omitempty"` // Allow switching between PRIVATE/BUSINESS
+	BusinessName         *string      `json:"business_name,omitempty"`
+	VATNumber            *string      `json:"vat_number,omitempty"`
+	SocialLinks          *SocialLinks `json:"social_links,omitempty"`
+	HasMultipleLocations *bool        `json:"has_multiple_locations,omitempty"`
+
+	// Billing info
+	FiscalCode        *string `json:"fiscal_code,omitempty"`
+	SDICode           *string `json:"sdi_code,omitempty"`
+	PECEmail          *string `json:"pec_email,omitempty"`
+	EUVatID           *string `json:"eu_vat_id,omitempty"`
+	BillingAddress    *string `json:"billing_address,omitempty"`
+	BillingCity       *string `json:"billing_city,omitempty"`
+	BillingProvince   *string `json:"billing_province,omitempty"`
+	BillingPostalCode *string `json:"billing_postal_code,omitempty"`
+	BillingCountry    *string `json:"billing_country,omitempty"`
 }
 
 // CreateLocationRequest for adding a new location

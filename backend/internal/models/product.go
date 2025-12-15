@@ -29,10 +29,23 @@ const (
 type ShippingMethod string
 
 const (
-	ShippingPickup          ShippingMethod = "PICKUP"
-	ShippingSellerShips     ShippingMethod = "SELLER_SHIPS"
-	ShippingBuyerArranges   ShippingMethod = "BUYER_ARRANGES"
-	ShippingPlatformManaged ShippingMethod = "PLATFORM_MANAGED"
+	ShippingPickup            ShippingMethod = "PICKUP"
+	ShippingSellerShips       ShippingMethod = "SELLER_SHIPS"
+	ShippingBuyerArranges     ShippingMethod = "BUYER_ARRANGES"
+	ShippingPlatformManaged   ShippingMethod = "PLATFORM_MANAGED"
+	ShippingDigitalForwarders ShippingMethod = "DIGITAL_FORWARDERS" // Coming Soon
+)
+
+// QuantityUnit represents the unit of measurement for quantity
+type QuantityUnit string
+
+const (
+	QuantityUnitPiece  QuantityUnit = "PIECE"
+	QuantityUnitKG     QuantityUnit = "KG"
+	QuantityUnitG      QuantityUnit = "G"
+	QuantityUnitL      QuantityUnit = "L"
+	QuantityUnitML     QuantityUnit = "ML"
+	QuantityUnitCustom QuantityUnit = "CUSTOM"
 )
 
 // Product represents a product listing
@@ -46,12 +59,14 @@ type Product struct {
 	Price           float64        `json:"price"`
 	OriginalPrice   *float64       `json:"original_price,omitempty"`
 	ListingType     ListingType    `json:"listing_type"`
-	ShippingMethod  ShippingMethod `json:"shipping_method"`
-	ShippingCost    float64        `json:"shipping_cost"`
-	Quantity        int            `json:"quantity"`
-	QuantityAvail   int            `json:"quantity_available"`
-	ExpiryDate      *time.Time     `json:"expiry_date,omitempty"`
-	ExpiryPhotoURL  *string        `json:"expiry_photo_url,omitempty"`
+	ShippingMethod     ShippingMethod `json:"shipping_method"`
+	ShippingCost       float64        `json:"shipping_cost"`
+	Quantity           int            `json:"quantity"`
+	QuantityAvail      int            `json:"quantity_available"`
+	QuantityUnit       QuantityUnit   `json:"quantity_unit"`
+	QuantityUnitCustom *string        `json:"quantity_unit_custom,omitempty"`
+	ExpiryDate         *time.Time     `json:"expiry_date,omitempty"`
+	ExpiryPhotoURL     *string        `json:"expiry_photo_url,omitempty"`
 
 	// Dutch Auction
 	IsDutchAuction      bool       `json:"is_dutch_auction"`
@@ -106,6 +121,8 @@ type CreateProductRequest struct {
 	Price               float64        `json:"price"`
 	OriginalPrice       *float64       `json:"original_price,omitempty"`
 	Quantity            int            `json:"quantity"`
+	QuantityUnit        QuantityUnit   `json:"quantity_unit"`
+	QuantityUnitCustom  *string        `json:"quantity_unit_custom,omitempty"`
 	ListingType         ListingType    `json:"listing_type"`
 	ShippingMethod      ShippingMethod `json:"shipping_method"`
 	ShippingCost        float64        `json:"shipping_cost"`
@@ -124,13 +141,15 @@ type CreateProductRequest struct {
 
 // UpdateProductRequest represents a request to update a product
 type UpdateProductRequest struct {
-	Title          *string        `json:"title,omitempty"`
-	Description    *string        `json:"description,omitempty"`
-	Price          *float64       `json:"price,omitempty"`
-	Quantity       *int           `json:"quantity,omitempty"`
-	Status         *ProductStatus `json:"status,omitempty"`
-	ShippingMethod *ShippingMethod `json:"shipping_method,omitempty"`
-	ShippingCost   *float64       `json:"shipping_cost,omitempty"`
+	Title              *string         `json:"title,omitempty"`
+	Description        *string         `json:"description,omitempty"`
+	Price              *float64        `json:"price,omitempty"`
+	Quantity           *int            `json:"quantity,omitempty"`
+	QuantityUnit       *QuantityUnit   `json:"quantity_unit,omitempty"`
+	QuantityUnitCustom *string         `json:"quantity_unit_custom,omitempty"`
+	Status             *ProductStatus  `json:"status,omitempty"`
+	ShippingMethod     *ShippingMethod `json:"shipping_method,omitempty"`
+	ShippingCost       *float64        `json:"shipping_cost,omitempty"`
 }
 
 // ProductListResponse represents a paginated list of products
