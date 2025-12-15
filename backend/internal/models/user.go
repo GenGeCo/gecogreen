@@ -188,11 +188,17 @@ type RegisterRequest struct {
 	VATNumber            string `json:"vat_number,omitempty"`
 	HasMultipleLocations bool   `json:"has_multiple_locations"`
 
+	// Billing info (for BUSINESS accounts)
+	FiscalCode     string `json:"fiscal_code,omitempty"`      // Codice Fiscale
+	SDICode        string `json:"sdi_code,omitempty"`         // Codice Univoco SDI (7 chars)
+	PECEmail       string `json:"pec_email,omitempty"`        // PEC for e-invoicing
+	BillingCountry string `json:"billing_country,omitempty"`  // ISO 3166-1 alpha-2 (IT, DE, FR, etc.)
+
 	// Primary location (required for all)
-	City           string `json:"city" validate:"required"`
-	Province       string `json:"province,omitempty"`
-	PostalCode     string `json:"postal_code,omitempty"`
-	AddressStreet  string `json:"address_street,omitempty"`
+	City          string `json:"city" validate:"required"`
+	Province      string `json:"province,omitempty"`
+	PostalCode    string `json:"postal_code,omitempty"`
+	AddressStreet string `json:"address_street,omitempty"`
 }
 
 type LoginRequest struct {

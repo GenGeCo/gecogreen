@@ -270,6 +270,17 @@ export interface User {
 	business_name?: string;
 	vat_number?: string;
 	has_multiple_locations: boolean;
+	// Billing info
+	fiscal_code?: string;
+	sdi_code?: string;
+	pec_email?: string;
+	eu_vat_id?: string;
+	billing_address?: string;
+	billing_city?: string;
+	billing_province?: string;
+	billing_postal_code?: string;
+	billing_country?: string;
+	// Profile
 	avatar_url?: string;
 	social_links?: SocialLinks;
 	business_photos?: string[];
@@ -312,6 +323,12 @@ export interface RegisterRequest {
 	business_name?: string;
 	vat_number?: string;
 	has_multiple_locations?: boolean;
+	// Billing info (for BUSINESS accounts)
+	fiscal_code?: string;
+	sdi_code?: string;
+	pec_email?: string;
+	billing_country?: string;
+	// Location
 	city: string;
 	province?: string;
 	postal_code?: string;

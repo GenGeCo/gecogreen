@@ -11,6 +11,10 @@
 	let accountType: AccountType = 'PRIVATE';
 	let businessName = '';
 	let vatNumber = '';
+	let fiscalCode = '';
+	let sdiCode = '';
+	let pecEmail = '';
+	let country = 'IT';
 	let hasMultipleLocations = false;
 	let city = '';
 	let province = '';
@@ -45,6 +49,10 @@
 				error = 'La partita IVA è obbligatoria per account aziendali';
 				return;
 			}
+			if (country === 'IT' && !sdiCode && !pecEmail) {
+				error = 'Per aziende italiane è obbligatorio il Codice Univoco SDI o la PEC';
+				return;
+			}
 		}
 
 		loading = true;
@@ -57,6 +65,10 @@
 			account_type: accountType,
 			business_name: accountType === 'BUSINESS' ? businessName : undefined,
 			vat_number: accountType === 'BUSINESS' ? vatNumber : undefined,
+			fiscal_code: accountType === 'BUSINESS' ? (fiscalCode || undefined) : undefined,
+			sdi_code: accountType === 'BUSINESS' ? (sdiCode || undefined) : undefined,
+			pec_email: accountType === 'BUSINESS' ? (pecEmail || undefined) : undefined,
+			billing_country: country || 'IT',
 			has_multiple_locations: accountType === 'BUSINESS' ? hasMultipleLocations : false,
 			city,
 			province: province || undefined,
@@ -174,19 +186,96 @@
 							/>
 						</div>
 
-						<div class="form-control">
-							<label class="label" for="vatNumber">
-								<span class="label-text">Partita IVA *</span>
-							</label>
-							<input
-								type="text"
-								id="vatNumber"
-								bind:value={vatNumber}
-								class="input input-bordered"
-								placeholder="IT12345678901"
-								required={accountType === 'BUSINESS'}
-							/>
+						<div class="grid grid-cols-2 gap-4">
+							<div class="form-control">
+								<label class="label" for="vatNumber">
+									<span class="label-text">Partita IVA *</span>
+								</label>
+								<input
+									type="text"
+									id="vatNumber"
+									bind:value={vatNumber}
+									class="input input-bordered"
+									placeholder="IT12345678901"
+									required={accountType === 'BUSINESS'}
+								/>
+							</div>
+							<div class="form-control">
+								<label class="label" for="fiscalCode">
+									<span class="label-text">Codice Fiscale</span>
+								</label>
+								<input
+									type="text"
+									id="fiscalCode"
+									bind:value={fiscalCode}
+									class="input input-bordered"
+									placeholder="RSSMRA80A01H501U"
+									maxlength="16"
+								/>
+							</div>
 						</div>
+
+						<div class="form-control">
+							<label class="label" for="country">
+								<span class="label-text">Nazione *</span>
+							</label>
+							<select id="country" bind:value={country} class="select select-bordered">
+								<option value="IT">Italia</option>
+								<option value="DE">Germania</option>
+								<option value="FR">Francia</option>
+								<option value="ES">Spagna</option>
+								<option value="AT">Austria</option>
+								<option value="BE">Belgio</option>
+								<option value="NL">Paesi Bassi</option>
+								<option value="PT">Portogallo</option>
+								<option value="GR">Grecia</option>
+								<option value="PL">Polonia</option>
+								<option value="OTHER">Altro paese UE</option>
+							</select>
+						</div>
+
+						{#if country === 'IT'}
+							<div class="alert alert-info text-sm">
+								<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-5 h-5">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+								</svg>
+								<span>Per la fatturazione elettronica italiana è necessario il <strong>Codice Univoco SDI</strong> oppure la <strong>PEC</strong>.</span>
+							</div>
+
+							<div class="grid grid-cols-2 gap-4">
+								<div class="form-control">
+									<label class="label" for="sdiCode">
+										<span class="label-text">Codice Univoco SDI</span>
+									</label>
+									<input
+										type="text"
+										id="sdiCode"
+										bind:value={sdiCode}
+										class="input input-bordered"
+										placeholder="XXXXXXX"
+										maxlength="7"
+									/>
+									<label class="label">
+										<span class="label-text-alt">7 caratteri alfanumerici</span>
+									</label>
+								</div>
+								<div class="form-control">
+									<label class="label" for="pecEmail">
+										<span class="label-text">PEC</span>
+									</label>
+									<input
+										type="email"
+										id="pecEmail"
+										bind:value={pecEmail}
+										class="input input-bordered"
+										placeholder="azienda@pec.it"
+									/>
+									<label class="label">
+										<span class="label-text-alt">Alternativa al Codice SDI</span>
+									</label>
+								</div>
+							</div>
+						{/if}
 
 						<div class="form-control">
 							<label class="label cursor-pointer justify-start gap-3">

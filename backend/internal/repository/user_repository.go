@@ -33,9 +33,10 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		INSERT INTO users (
 			id, email, password_hash, first_name, last_name, phone,
 			city, province, postal_code, account_type, business_name, vat_number,
-			has_multiple_locations, status, email_verified, created_at, updated_at
+			has_multiple_locations, fiscal_code, sdi_code, pec_email, billing_country,
+			status, email_verified, created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10::account_type, $11, $12, $13, $14::user_status, $15, $16, $17
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10::account_type, $11, $12, $13, $14, $15, $16, $17, $18::user_status, $19, $20, $21
 		)
 	`
 
@@ -52,7 +53,8 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	_, err := r.pool.Exec(ctx, query,
 		user.ID, user.Email, user.PasswordHash, user.FirstName, user.LastName, user.Phone,
 		user.City, user.Province, user.PostalCode, string(user.AccountType), user.BusinessName, user.VATNumber,
-		user.HasMultipleLocations, string(user.Status), user.EmailVerified, user.CreatedAt, user.UpdatedAt,
+		user.HasMultipleLocations, user.FiscalCode, user.SDICode, user.PECEmail, user.BillingCountry,
+		string(user.Status), user.EmailVerified, user.CreatedAt, user.UpdatedAt,
 	)
 
 	if err != nil && strings.Contains(err.Error(), "users_email_key") {
@@ -66,7 +68,11 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 		SELECT id, email, password_hash, first_name, last_name,
 		       COALESCE(phone, ''), COALESCE(city, ''), COALESCE(province, ''), COALESCE(postal_code, ''),
 		       COALESCE(account_type::text, 'PRIVATE'), COALESCE(business_name, ''), COALESCE(vat_number, ''),
-		       COALESCE(has_multiple_locations, false), status::text, email_verified, COALESCE(is_admin, false),
+		       COALESCE(has_multiple_locations, false),
+		       COALESCE(fiscal_code, ''), COALESCE(sdi_code, ''), COALESCE(pec_email, ''),
+		       COALESCE(eu_vat_id, ''), COALESCE(billing_address, ''), COALESCE(billing_city, ''),
+		       COALESCE(billing_province, ''), COALESCE(billing_postal_code, ''), COALESCE(billing_country, 'IT'),
+		       status::text, email_verified, COALESCE(is_admin, false),
 		       COALESCE(avatar_url, ''), COALESCE(social_links, '{}'), COALESCE(business_photos, '[]'),
 		       stripe_customer_id, stripe_account_id,
 		       COALESCE(total_co2_saved, 0), COALESCE(total_water_saved, 0), COALESCE(eco_credits, 0), COALESCE(eco_level, 'Germoglio'),
@@ -85,7 +91,11 @@ func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Use
 		&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName,
 		&user.Phone, &user.City, &user.Province, &user.PostalCode,
 		&accountType, &user.BusinessName, &user.VATNumber,
-		&user.HasMultipleLocations, &status, &user.EmailVerified, &user.IsAdmin,
+		&user.HasMultipleLocations,
+		&user.FiscalCode, &user.SDICode, &user.PECEmail,
+		&user.EUVatID, &user.BillingAddress, &user.BillingCity,
+		&user.BillingProvince, &user.BillingPostalCode, &user.BillingCountry,
+		&status, &user.EmailVerified, &user.IsAdmin,
 		&user.AvatarURL, &socialLinksJSON, &businessPhotosJSON,
 		&user.StripeCustomerID, &user.StripeAccountID,
 		&user.TotalCO2Saved, &user.TotalWaterSaved, &user.EcoCredits, &user.EcoLevel,
@@ -115,7 +125,11 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 		SELECT id, email, password_hash, first_name, last_name,
 		       COALESCE(phone, ''), COALESCE(city, ''), COALESCE(province, ''), COALESCE(postal_code, ''),
 		       COALESCE(account_type::text, 'PRIVATE'), COALESCE(business_name, ''), COALESCE(vat_number, ''),
-		       COALESCE(has_multiple_locations, false), status::text, email_verified, COALESCE(is_admin, false),
+		       COALESCE(has_multiple_locations, false),
+		       COALESCE(fiscal_code, ''), COALESCE(sdi_code, ''), COALESCE(pec_email, ''),
+		       COALESCE(eu_vat_id, ''), COALESCE(billing_address, ''), COALESCE(billing_city, ''),
+		       COALESCE(billing_province, ''), COALESCE(billing_postal_code, ''), COALESCE(billing_country, 'IT'),
+		       status::text, email_verified, COALESCE(is_admin, false),
 		       COALESCE(avatar_url, ''), COALESCE(social_links, '{}'), COALESCE(business_photos, '[]'),
 		       stripe_customer_id, stripe_account_id,
 		       COALESCE(total_co2_saved, 0), COALESCE(total_water_saved, 0), COALESCE(eco_credits, 0), COALESCE(eco_level, 'Germoglio'),
@@ -134,7 +148,11 @@ func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.
 		&user.ID, &user.Email, &user.PasswordHash, &user.FirstName, &user.LastName,
 		&user.Phone, &user.City, &user.Province, &user.PostalCode,
 		&accountType, &user.BusinessName, &user.VATNumber,
-		&user.HasMultipleLocations, &status, &user.EmailVerified, &user.IsAdmin,
+		&user.HasMultipleLocations,
+		&user.FiscalCode, &user.SDICode, &user.PECEmail,
+		&user.EUVatID, &user.BillingAddress, &user.BillingCity,
+		&user.BillingProvince, &user.BillingPostalCode, &user.BillingCountry,
+		&status, &user.EmailVerified, &user.IsAdmin,
 		&user.AvatarURL, &socialLinksJSON, &businessPhotosJSON,
 		&user.StripeCustomerID, &user.StripeAccountID,
 		&user.TotalCO2Saved, &user.TotalWaterSaved, &user.EcoCredits, &user.EcoLevel,
