@@ -94,6 +94,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		FiscalCode:           req.FiscalCode,
 		SDICode:              req.SDICode,
 		PECEmail:             req.PECEmail,
+		EUVatID:              req.EUVatID,
 		BillingCountry:       req.BillingCountry,
 		City:                 req.City,
 		Province:             req.Province,

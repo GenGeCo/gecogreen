@@ -327,6 +327,7 @@ export interface RegisterRequest {
 	fiscal_code?: string;
 	sdi_code?: string;
 	pec_email?: string;
+	eu_vat_id?: string;
 	billing_country?: string;
 	// Location
 	city: string;

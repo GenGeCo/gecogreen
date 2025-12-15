@@ -14,6 +14,7 @@
 	let fiscalCode = '';
 	let sdiCode = '';
 	let pecEmail = '';
+	let euVatId = '';
 	let country = 'IT';
 	let hasMultipleLocations = false;
 	let city = '';
@@ -66,8 +67,9 @@
 			business_name: accountType === 'BUSINESS' ? businessName : undefined,
 			vat_number: accountType === 'BUSINESS' ? vatNumber : undefined,
 			fiscal_code: accountType === 'BUSINESS' ? (fiscalCode || undefined) : undefined,
-			sdi_code: accountType === 'BUSINESS' ? (sdiCode || undefined) : undefined,
-			pec_email: accountType === 'BUSINESS' ? (pecEmail || undefined) : undefined,
+			sdi_code: accountType === 'BUSINESS' && country === 'IT' ? (sdiCode || undefined) : undefined,
+			pec_email: accountType === 'BUSINESS' && country === 'IT' ? (pecEmail || undefined) : undefined,
+			eu_vat_id: accountType === 'BUSINESS' && country !== 'IT' ? (euVatId || undefined) : undefined,
 			billing_country: country || 'IT',
 			has_multiple_locations: accountType === 'BUSINESS' ? hasMultipleLocations : false,
 			city,
@@ -274,6 +276,22 @@
 										<span class="label-text-alt">Alternativa al Codice SDI</span>
 									</label>
 								</div>
+							</div>
+						{:else}
+							<div class="form-control">
+								<label class="label" for="euVatId">
+									<span class="label-text">EU VAT ID</span>
+								</label>
+								<input
+									type="text"
+									id="euVatId"
+									bind:value={euVatId}
+									class="input input-bordered"
+									placeholder="{country}123456789"
+								/>
+								<label class="label">
+									<span class="label-text-alt">Partita IVA europea (es. DE123456789, FR12345678901)</span>
+								</label>
 							</div>
 						{/if}
 

@@ -33,10 +33,10 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 		INSERT INTO users (
 			id, email, password_hash, first_name, last_name, phone,
 			city, province, postal_code, account_type, business_name, vat_number,
-			has_multiple_locations, fiscal_code, sdi_code, pec_email, billing_country,
+			has_multiple_locations, fiscal_code, sdi_code, pec_email, eu_vat_id, billing_country,
 			status, email_verified, created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10::account_type, $11, $12, $13, $14, $15, $16, $17, $18::user_status, $19, $20, $21
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10::account_type, $11, $12, $13, $14, $15, $16, $17, $18, $19::user_status, $20, $21, $22
 		)
 	`
 
@@ -53,7 +53,7 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	_, err := r.pool.Exec(ctx, query,
 		user.ID, user.Email, user.PasswordHash, user.FirstName, user.LastName, user.Phone,
 		user.City, user.Province, user.PostalCode, string(user.AccountType), user.BusinessName, user.VATNumber,
-		user.HasMultipleLocations, user.FiscalCode, user.SDICode, user.PECEmail, user.BillingCountry,
+		user.HasMultipleLocations, user.FiscalCode, user.SDICode, user.PECEmail, user.EUVatID, user.BillingCountry,
 		string(user.Status), user.EmailVerified, user.CreatedAt, user.UpdatedAt,
 	)
 

@@ -192,6 +192,7 @@ type RegisterRequest struct {
 	FiscalCode     string `json:"fiscal_code,omitempty"`      // Codice Fiscale
 	SDICode        string `json:"sdi_code,omitempty"`         // Codice Univoco SDI (7 chars)
 	PECEmail       string `json:"pec_email,omitempty"`        // PEC for e-invoicing
+	EUVatID        string `json:"eu_vat_id,omitempty"`        // EU VAT ID for non-IT businesses
 	BillingCountry string `json:"billing_country,omitempty"`  // ISO 3166-1 alpha-2 (IT, DE, FR, etc.)
 
 	// Primary location (required for all)
