@@ -106,12 +106,16 @@ type UserProfile struct {
 	CreatedAt    time.Time   `json:"created_at"`
 }
 
-// UserPublicMinimal is shown in product listings (minimal info)
+// UserPublicMinimal is shown in product listings and leaderboards (minimal public info)
 type UserPublicMinimal struct {
-	ID          uuid.UUID   `json:"id"`
-	AccountType AccountType `json:"account_type"`
-	City        string      `json:"city,omitempty"`
-	RatingAvg   float64     `json:"rating_avg"`
+	ID           uuid.UUID   `json:"id"`
+	AccountType  AccountType `json:"account_type"`
+	BusinessName string      `json:"business_name,omitempty"`
+	FirstName    string      `json:"first_name"`
+	LastName     string      `json:"last_name"`
+	AvatarURL    string      `json:"avatar_url,omitempty"`
+	City         string      `json:"city,omitempty"`
+	RatingAvg    float64     `json:"rating_avg"`
 }
 
 // UserFullProfile is shown after purchase (includes contact info)
@@ -140,10 +144,14 @@ func (u *User) ToProfile() UserProfile {
 
 func (u *User) ToMinimal() UserPublicMinimal {
 	return UserPublicMinimal{
-		ID:          u.ID,
-		AccountType: u.AccountType,
-		City:        u.City,
-		RatingAvg:   u.RatingAvg,
+		ID:           u.ID,
+		AccountType:  u.AccountType,
+		BusinessName: u.BusinessName,
+		FirstName:    u.FirstName,
+		LastName:     u.LastName,
+		AvatarURL:    u.AvatarURL,
+		City:         u.City,
+		RatingAvg:    u.RatingAvg,
 	}
 }
 
