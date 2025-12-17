@@ -58,10 +58,10 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	}
 
 	// Check quantity available
-	if req.Quantity > product.QuantityAvailable {
+	if req.Quantity > product.QuantityAvail {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error":     "Quantità non disponibile",
-			"available": product.QuantityAvailable,
+			"available": product.QuantityAvail,
 		})
 	}
 
