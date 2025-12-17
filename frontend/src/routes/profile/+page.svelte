@@ -21,6 +21,17 @@
 	let vatNumber = '';
 	let socialLinks: SocialLinks = {};
 	let hasMultipleLocations = false;
+	let accountType: 'PRIVATE' | 'BUSINESS' = 'PRIVATE';
+
+	// Billing info
+	let fiscalCode = '';
+	let sdiCode = '';
+	let pecEmail = '';
+	let billingCountry = 'IT';
+
+	// Account type change modal
+	let showAccountTypeModal = false;
+	let pendingAccountType: 'PRIVATE' | 'BUSINESS' | null = null;
 
 	// New location form
 	let showLocationForm = false;
@@ -52,6 +63,11 @@
 		vatNumber = $currentUser.vat_number || '';
 		socialLinks = $currentUser.social_links || {};
 		hasMultipleLocations = $currentUser.has_multiple_locations || false;
+		accountType = $currentUser.account_type || 'PRIVATE';
+		fiscalCode = $currentUser.fiscal_code || '';
+		sdiCode = $currentUser.sdi_code || '';
+		pecEmail = $currentUser.pec_email || '';
+		billingCountry = $currentUser.billing_country || 'IT';
 	}
 
 	async function loadProfile() {
@@ -71,24 +87,89 @@
 		saving = true;
 
 		try {
-			const updated = await api.updateProfile({
+			const profileData: Record<string, unknown> = {
 				first_name: firstName,
 				last_name: lastName,
 				phone: phone || undefined,
 				city: city || undefined,
 				province: province || undefined,
 				postal_code: postalCode || undefined,
-				business_name: businessName || undefined,
-				vat_number: vatNumber || undefined,
-				social_links: socialLinks,
-				has_multiple_locations: hasMultipleLocations
-			});
+				social_links: socialLinks
+			};
+
+			// Add business fields if business account
+			if (accountType === 'BUSINESS') {
+				profileData.business_name = businessName || undefined;
+				profileData.vat_number = vatNumber || undefined;
+				profileData.has_multiple_locations = hasMultipleLocations;
+				profileData.fiscal_code = fiscalCode || undefined;
+				profileData.sdi_code = sdiCode || undefined;
+				profileData.pec_email = pecEmail || undefined;
+				profileData.billing_country = billingCountry || undefined;
+			}
+
+			const updated = await api.updateProfile(profileData);
 			auth.updateUser(updated);
 			success = 'Profilo aggiornato!';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Errore salvataggio';
 		}
 		saving = false;
+	}
+
+	function requestAccountTypeChange(newType: 'PRIVATE' | 'BUSINESS') {
+		pendingAccountType = newType;
+		showAccountTypeModal = true;
+	}
+
+	async function confirmAccountTypeChange() {
+		if (!pendingAccountType) return;
+
+		// Validation for BUSINESS
+		if (pendingAccountType === 'BUSINESS') {
+			if (!businessName.trim()) {
+				error = 'Inserisci la Ragione Sociale per passare ad account Business';
+				showAccountTypeModal = false;
+				return;
+			}
+			if (!vatNumber.trim()) {
+				error = 'Inserisci la Partita IVA per passare ad account Business';
+				showAccountTypeModal = false;
+				return;
+			}
+		}
+
+		error = '';
+		success = '';
+		saving = true;
+		showAccountTypeModal = false;
+
+		try {
+			const profileData: Record<string, unknown> = {
+				account_type: pendingAccountType
+			};
+
+			// Include business data when switching to BUSINESS
+			if (pendingAccountType === 'BUSINESS') {
+				profileData.business_name = businessName;
+				profileData.vat_number = vatNumber;
+				profileData.fiscal_code = fiscalCode || undefined;
+				profileData.sdi_code = sdiCode || undefined;
+				profileData.pec_email = pecEmail || undefined;
+				profileData.billing_country = billingCountry || undefined;
+			}
+
+			const updated = await api.updateProfile(profileData);
+			auth.updateUser(updated);
+			accountType = pendingAccountType;
+			success = pendingAccountType === 'BUSINESS'
+				? 'Account convertito in Business!'
+				: 'Account convertito in Privato!';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Errore cambio tipo account';
+		}
+		saving = false;
+		pendingAccountType = null;
 	}
 
 	async function uploadAvatar(event: Event) {
@@ -224,6 +305,54 @@
 				</div>
 			</div>
 
+			<!-- Account Type Section -->
+			<div class="card bg-base-100 shadow">
+				<div class="card-body">
+					<h2 class="card-title text-lg">Tipo Account</h2>
+
+					<div class="flex items-center justify-between">
+						<div>
+							<p class="text-lg font-semibold">
+								{accountType === 'BUSINESS' ? 'Account Business' : 'Account Privato'}
+							</p>
+							<p class="text-sm text-base-content/70">
+								{#if accountType === 'BUSINESS'}
+									Puoi vendere come azienda con P.IVA, fatturazione elettronica e sedi multiple.
+								{:else}
+									Puoi vendere come privato. Passa a Business per funzionalità aziendali.
+								{/if}
+							</p>
+						</div>
+						<div>
+							{#if accountType === 'BUSINESS'}
+								<button
+									class="btn btn-outline btn-sm"
+									on:click={() => requestAccountTypeChange('PRIVATE')}
+								>
+									Passa a Privato
+								</button>
+							{:else}
+								<button
+									class="btn btn-primary btn-sm"
+									on:click={() => requestAccountTypeChange('BUSINESS')}
+								>
+									Passa a Business
+								</button>
+							{/if}
+						</div>
+					</div>
+
+					{#if accountType === 'BUSINESS'}
+						<div class="alert alert-info mt-4">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+							</svg>
+							<span>Come Business puoi avere <strong>{locations.length}</strong> sedi di ritiro configurate.</span>
+						</div>
+					{/if}
+				</div>
+			</div>
+
 			<!-- Personal Info -->
 			<div class="card bg-base-100 shadow">
 				<div class="card-body">
@@ -322,8 +451,8 @@
 				</div>
 			</div>
 
-			<!-- Business Info (if business account) -->
-			{#if $isBusiness}
+			<!-- Business Info (if business account or switching to business) -->
+			{#if accountType === 'BUSINESS'}
 				<div class="card bg-base-100 shadow">
 					<div class="card-body">
 						<h2 class="card-title text-lg">Informazioni Aziendali</h2>
@@ -331,27 +460,96 @@
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div class="form-control">
 								<label class="label" for="businessName">
-									<span class="label-text">Ragione Sociale</span>
+									<span class="label-text">Ragione Sociale *</span>
 								</label>
 								<input
 									type="text"
 									id="businessName"
 									bind:value={businessName}
 									class="input input-bordered"
+									placeholder="Nome Azienda Srl"
 								/>
 							</div>
 
 							<div class="form-control">
 								<label class="label" for="vatNumber">
-									<span class="label-text">Partita IVA</span>
+									<span class="label-text">Partita IVA *</span>
 								</label>
 								<input
 									type="text"
 									id="vatNumber"
 									bind:value={vatNumber}
 									class="input input-bordered"
+									placeholder="IT12345678901"
 								/>
 							</div>
+						</div>
+
+						<h3 class="font-semibold mt-6 mb-2">Dati Fatturazione</h3>
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div class="form-control">
+								<label class="label" for="fiscalCode">
+									<span class="label-text">Codice Fiscale</span>
+								</label>
+								<input
+									type="text"
+									id="fiscalCode"
+									bind:value={fiscalCode}
+									class="input input-bordered"
+									placeholder="RSSMRA80A01H501U"
+								/>
+							</div>
+
+							<div class="form-control">
+								<label class="label" for="billingCountry">
+									<span class="label-text">Paese</span>
+								</label>
+								<select id="billingCountry" bind:value={billingCountry} class="select select-bordered">
+									<option value="IT">Italia</option>
+									<option value="DE">Germania</option>
+									<option value="FR">Francia</option>
+									<option value="ES">Spagna</option>
+									<option value="AT">Austria</option>
+									<option value="NL">Paesi Bassi</option>
+									<option value="BE">Belgio</option>
+									<option value="CH">Svizzera</option>
+								</select>
+							</div>
+
+							{#if billingCountry === 'IT'}
+								<div class="form-control">
+									<label class="label" for="sdiCode">
+										<span class="label-text">Codice SDI</span>
+									</label>
+									<input
+										type="text"
+										id="sdiCode"
+										bind:value={sdiCode}
+										class="input input-bordered"
+										placeholder="0000000"
+										maxlength="7"
+									/>
+									<label class="label">
+										<span class="label-text-alt">Codice Univoco 7 caratteri</span>
+									</label>
+								</div>
+
+								<div class="form-control">
+									<label class="label" for="pecEmail">
+										<span class="label-text">PEC</span>
+									</label>
+									<input
+										type="email"
+										id="pecEmail"
+										bind:value={pecEmail}
+										class="input input-bordered"
+										placeholder="azienda@pec.it"
+									/>
+									<label class="label">
+										<span class="label-text-alt">Richiesto se non hai SDI</span>
+									</label>
+								</div>
+							{/if}
 						</div>
 
 						<div class="form-control mt-4">
@@ -442,7 +640,7 @@
 			</button>
 
 			<!-- Locations Section -->
-			{#if $isBusiness || locations.length > 0}
+			{#if accountType === 'BUSINESS' || locations.length > 0}
 				<div class="card bg-base-100 shadow">
 					<div class="card-body">
 						<div class="flex justify-between items-center">
@@ -611,3 +809,63 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Account Type Change Modal -->
+{#if showAccountTypeModal}
+	<div class="modal modal-open">
+		<div class="modal-box">
+			{#if pendingAccountType === 'BUSINESS'}
+				<h3 class="font-bold text-lg">Passa ad Account Business</h3>
+				<p class="py-4">
+					Stai per convertire il tuo account in <strong>Business</strong>.
+				</p>
+				<div class="bg-base-200 rounded-lg p-4 mb-4">
+					<p class="font-semibold mb-2">Con un account Business potrai:</p>
+					<ul class="list-disc list-inside text-sm space-y-1">
+						<li>Vendere come azienda con Partita IVA</li>
+						<li>Ricevere fatture elettroniche</li>
+						<li>Gestire più sedi di ritiro</li>
+						<li>Mostrare il nome aziendale nei prodotti</li>
+					</ul>
+				</div>
+				<div class="alert alert-warning">
+					<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+					</svg>
+					<span>Assicurati di aver compilato Ragione Sociale e P.IVA nella sezione Informazioni Aziendali prima di confermare.</span>
+				</div>
+			{:else}
+				<h3 class="font-bold text-lg">Passa ad Account Privato</h3>
+				<p class="py-4">
+					Stai per convertire il tuo account in <strong>Privato</strong>.
+				</p>
+				<div class="alert alert-warning mb-4">
+					<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+					</svg>
+					<div>
+						<p class="font-semibold">Attenzione!</p>
+						<p class="text-sm">Passando a Privato perderai l'accesso alle funzionalità Business. I dati aziendali e le sedi rimarranno salvati nel caso volessi tornare a Business.</p>
+					</div>
+				</div>
+			{/if}
+
+			<div class="modal-action">
+				<button class="btn btn-ghost" on:click={() => { showAccountTypeModal = false; pendingAccountType = null; }}>
+					Annulla
+				</button>
+				<button
+					class="btn {pendingAccountType === 'BUSINESS' ? 'btn-primary' : 'btn-warning'}"
+					on:click={confirmAccountTypeChange}
+					disabled={saving}
+				>
+					{#if saving}
+						<span class="loading loading-spinner"></span>
+					{/if}
+					Conferma
+				</button>
+			</div>
+		</div>
+		<div class="modal-backdrop" on:click={() => { showAccountTypeModal = false; pendingAccountType = null; }} on:keypress={() => {}}></div>
+	</div>
+{/if}

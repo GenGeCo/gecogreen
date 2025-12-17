@@ -48,6 +48,8 @@ func main() {
 	userRepo := repository.NewUserRepository(db.Pool)
 	productRepo := repository.NewProductRepository(db.Pool)
 	imageReviewRepo := repository.NewImageReviewRepository(db.Pool)
+	leaderboardRepo := repository.NewLeaderboardRepository(db.Pool)
+	orderRepo := repository.NewOrderRepository(db.Pool)
 
 	// JWT
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret)
@@ -57,6 +59,8 @@ func main() {
 	authHandler := handlers.NewAuthHandler(userRepo, jwtManager)
 	productHandler := handlers.NewProductHandler(productRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo, imageReviewRepo)
+	leaderboardHandler := handlers.NewLeaderboardHandler(leaderboardRepo, userRepo)
+	orderHandler := handlers.NewOrderHandler(orderRepo, productRepo, userRepo)
 
 	// Optional: R2 Storage (for image uploads)
 	var uploadHandler *handlers.UploadHandler
@@ -179,6 +183,42 @@ func main() {
 	admin.Get("/reviews/:id", adminHandler.GetReviewDetail)
 	admin.Post("/reviews/:id/approve", adminHandler.ApproveReview)
 	admin.Post("/reviews/:id/reject", adminHandler.RejectReview)
+
+	// Leaderboard routes (public)
+	leaderboard := v1.Group("/leaderboard")
+	leaderboard.Get("/", leaderboardHandler.GetLeaderboard)
+	leaderboard.Get("/hall-of-fame", leaderboardHandler.GetHallOfFame)
+	leaderboard.Get("/community-stats", leaderboardHandler.GetCommunityStats)
+	leaderboard.Get("/featured", leaderboardHandler.GetFeaturedAwards)
+	// Leaderboard routes (authenticated)
+	leaderboard.Get("/my-rank", authMiddleware, leaderboardHandler.GetMyRank)
+	leaderboard.Get("/my-awards", authMiddleware, leaderboardHandler.GetMyAwards)
+	leaderboard.Get("/my-impact", authMiddleware, leaderboardHandler.GetMyImpactHistory)
+	leaderboard.Post("/redeem", authMiddleware, leaderboardHandler.RedeemReward)
+
+	// Admin Awards/Tasks routes
+	adminAwards := admin.Group("/awards")
+	adminAwards.Get("/tasks", leaderboardHandler.AdminGetTasks)
+	adminAwards.Post("/tasks", leaderboardHandler.AdminCreateTask)
+	adminAwards.Put("/tasks/:id", leaderboardHandler.AdminUpdateTask)
+	adminAwards.Post("/tasks/:id/complete", leaderboardHandler.AdminCompleteTask)
+	adminAwards.Post("/", leaderboardHandler.AdminCreateAward)
+	adminAwards.Get("/:id", leaderboardHandler.AdminGetAward)
+	adminAwards.Put("/:id", leaderboardHandler.AdminUpdateAward)
+
+	// Orders routes
+	orders := v1.Group("/orders", authMiddleware)
+	orders.Get("/", orderHandler.ListMyOrders)           // List my orders (as buyer)
+	orders.Get("/seller", orderHandler.ListSellerOrders) // List orders (as seller)
+	orders.Post("/", orderHandler.CreateOrder)           // Create new order
+	orders.Get("/:id", orderHandler.GetOrder)            // Get order details
+	orders.Put("/:id/status", orderHandler.UpdateOrderStatus) // Update status (seller)
+	orders.Post("/:id/cancel", orderHandler.CancelOrder) // Cancel order
+	orders.Get("/:id/qr", orderHandler.GetQRCode)        // Get QR code (buyer)
+	orders.Post("/confirm-pickup", orderHandler.ConfirmPickup) // Confirm pickup (seller scans QR)
+	orders.Post("/:id/dispute", orderHandler.OpenDispute) // Open dispute
+	orders.Get("/:id/dispute", orderHandler.GetDispute)   // Get dispute
+	orders.Post("/:id/review", orderHandler.CreateReview) // Create review
 
 	// 404
 	app.Use(func(c *fiber.Ctx) error {

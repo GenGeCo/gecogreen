@@ -343,10 +343,21 @@ export interface UpdateProfileRequest {
 	city?: string;
 	province?: string;
 	postal_code?: string;
+	account_type?: AccountType;
 	business_name?: string;
 	vat_number?: string;
 	social_links?: SocialLinks;
 	has_multiple_locations?: boolean;
+	// Billing info
+	fiscal_code?: string;
+	sdi_code?: string;
+	pec_email?: string;
+	eu_vat_id?: string;
+	billing_address?: string;
+	billing_city?: string;
+	billing_province?: string;
+	billing_postal_code?: string;
+	billing_country?: string;
 }
 
 export interface CreateLocationRequest {

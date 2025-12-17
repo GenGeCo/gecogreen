@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -196,56 +197,73 @@ func (r *UserRepository) UpdateProfile(ctx context.Context, id uuid.UUID, req *m
 	args := []interface{}{}
 	argNum := 1
 
-	if req.FirstName != nil {
-		updates = append(updates, "first_name = $"+string(rune('0'+argNum)))
-		args = append(args, *req.FirstName)
+	addField := func(column string, value interface{}) {
+		updates = append(updates, fmt.Sprintf("%s = $%d", column, argNum))
+		args = append(args, value)
 		argNum++
+	}
+
+	if req.FirstName != nil {
+		addField("first_name", *req.FirstName)
 	}
 	if req.LastName != nil {
-		updates = append(updates, "last_name = $"+string(rune('0'+argNum)))
-		args = append(args, *req.LastName)
-		argNum++
+		addField("last_name", *req.LastName)
 	}
 	if req.Phone != nil {
-		updates = append(updates, "phone = $"+string(rune('0'+argNum)))
-		args = append(args, *req.Phone)
-		argNum++
+		addField("phone", *req.Phone)
 	}
 	if req.City != nil {
-		updates = append(updates, "city = $"+string(rune('0'+argNum)))
-		args = append(args, *req.City)
-		argNum++
+		addField("city", *req.City)
 	}
 	if req.Province != nil {
-		updates = append(updates, "province = $"+string(rune('0'+argNum)))
-		args = append(args, *req.Province)
-		argNum++
+		addField("province", *req.Province)
 	}
 	if req.PostalCode != nil {
-		updates = append(updates, "postal_code = $"+string(rune('0'+argNum)))
-		args = append(args, *req.PostalCode)
-		argNum++
+		addField("postal_code", *req.PostalCode)
+	}
+	if req.AccountType != nil {
+		addField("account_type", string(*req.AccountType))
 	}
 	if req.BusinessName != nil {
-		updates = append(updates, "business_name = $"+string(rune('0'+argNum)))
-		args = append(args, *req.BusinessName)
-		argNum++
+		addField("business_name", *req.BusinessName)
 	}
 	if req.VATNumber != nil {
-		updates = append(updates, "vat_number = $"+string(rune('0'+argNum)))
-		args = append(args, *req.VATNumber)
-		argNum++
+		addField("vat_number", *req.VATNumber)
 	}
 	if req.SocialLinks != nil {
 		socialJSON, _ := json.Marshal(req.SocialLinks)
-		updates = append(updates, "social_links = $"+string(rune('0'+argNum)))
-		args = append(args, socialJSON)
-		argNum++
+		addField("social_links", socialJSON)
 	}
 	if req.HasMultipleLocations != nil {
-		updates = append(updates, "has_multiple_locations = $"+string(rune('0'+argNum)))
-		args = append(args, *req.HasMultipleLocations)
-		argNum++
+		addField("has_multiple_locations", *req.HasMultipleLocations)
+	}
+	// Billing fields
+	if req.FiscalCode != nil {
+		addField("fiscal_code", *req.FiscalCode)
+	}
+	if req.SDICode != nil {
+		addField("sdi_code", *req.SDICode)
+	}
+	if req.PECEmail != nil {
+		addField("pec_email", *req.PECEmail)
+	}
+	if req.EUVatID != nil {
+		addField("eu_vat_id", *req.EUVatID)
+	}
+	if req.BillingAddress != nil {
+		addField("billing_address", *req.BillingAddress)
+	}
+	if req.BillingCity != nil {
+		addField("billing_city", *req.BillingCity)
+	}
+	if req.BillingProvince != nil {
+		addField("billing_province", *req.BillingProvince)
+	}
+	if req.BillingPostalCode != nil {
+		addField("billing_postal_code", *req.BillingPostalCode)
+	}
+	if req.BillingCountry != nil {
+		addField("billing_country", *req.BillingCountry)
 	}
 
 	if len(updates) == 0 {
@@ -255,7 +273,7 @@ func (r *UserRepository) UpdateProfile(ctx context.Context, id uuid.UUID, req *m
 	updates = append(updates, "updated_at = NOW()")
 	args = append(args, id)
 
-	query := "UPDATE users SET " + strings.Join(updates, ", ") + " WHERE id = $" + string(rune('0'+argNum))
+	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $%d", strings.Join(updates, ", "), argNum)
 	_, err := r.pool.Exec(ctx, query, args...)
 	return err
 }
