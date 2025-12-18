@@ -46,6 +46,18 @@ class ApiClient {
 			headers
 		});
 
+		// Handle 401 Unauthorized - token expired or invalid
+		if (response.status === 401) {
+			this.setToken(null);
+			localStorage.removeItem('refresh_token');
+			localStorage.removeItem('user');
+			// Redirect to login page
+			if (typeof window !== 'undefined') {
+				window.location.href = '/login?expired=1';
+			}
+			throw new Error('Sessione scaduta. Effettua nuovamente il login.');
+		}
+
 		const data = await response.json();
 
 		if (!response.ok) {

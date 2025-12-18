@@ -813,7 +813,7 @@
 <!-- Account Type Change Modal -->
 {#if showAccountTypeModal}
 	<div class="modal modal-open">
-		<div class="modal-box">
+		<div class="modal-box relative z-10">
 			{#if pendingAccountType === 'BUSINESS'}
 				<h3 class="font-bold text-lg">Passa ad Account Business</h3>
 				<p class="py-4">
@@ -831,7 +831,7 @@
 
 				<!-- Campi obbligatori per Business -->
 				<div class="space-y-4 mb-4">
-					<div class="form-control">
+					<div class="form-control w-full">
 						<label class="label" for="modal-businessName">
 							<span class="label-text">Ragione Sociale *</span>
 						</label>
@@ -839,11 +839,12 @@
 							type="text"
 							id="modal-businessName"
 							bind:value={businessName}
-							class="input input-bordered"
+							class="input input-bordered w-full"
 							placeholder="Nome Azienda Srl"
+							autocomplete="organization"
 						/>
 					</div>
-					<div class="form-control">
+					<div class="form-control w-full">
 						<label class="label" for="modal-vatNumber">
 							<span class="label-text">Partita IVA *</span>
 						</label>
@@ -851,8 +852,9 @@
 							type="text"
 							id="modal-vatNumber"
 							bind:value={vatNumber}
-							class="input input-bordered"
+							class="input input-bordered w-full"
 							placeholder="IT12345678901"
+							autocomplete="off"
 						/>
 					</div>
 				</div>
