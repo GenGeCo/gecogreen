@@ -452,7 +452,7 @@
 			</div>
 
 			<!-- Business Info (if business account or switching to business) -->
-			{#if accountType === 'BUSINESS'}
+			{#if accountType === 'BUSINESS' || pendingAccountType === 'BUSINESS'}
 				<div class="card bg-base-100 shadow">
 					<div class="card-body">
 						<h2 class="card-title text-lg">Informazioni Aziendali</h2>
@@ -828,12 +828,43 @@
 						<li>Mostrare il nome aziendale nei prodotti</li>
 					</ul>
 				</div>
-				<div class="alert alert-warning">
-					<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-					</svg>
-					<span>Assicurati di aver compilato Ragione Sociale e P.IVA nella sezione Informazioni Aziendali prima di confermare.</span>
+
+				<!-- Campi obbligatori per Business -->
+				<div class="space-y-4 mb-4">
+					<div class="form-control">
+						<label class="label" for="modal-businessName">
+							<span class="label-text">Ragione Sociale *</span>
+						</label>
+						<input
+							type="text"
+							id="modal-businessName"
+							bind:value={businessName}
+							class="input input-bordered"
+							placeholder="Nome Azienda Srl"
+						/>
+					</div>
+					<div class="form-control">
+						<label class="label" for="modal-vatNumber">
+							<span class="label-text">Partita IVA *</span>
+						</label>
+						<input
+							type="text"
+							id="modal-vatNumber"
+							bind:value={vatNumber}
+							class="input input-bordered"
+							placeholder="IT12345678901"
+						/>
+					</div>
 				</div>
+
+				{#if !businessName.trim() || !vatNumber.trim()}
+					<div class="alert alert-warning">
+						<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						</svg>
+						<span>Compila Ragione Sociale e Partita IVA per continuare.</span>
+					</div>
+				{/if}
 			{:else}
 				<h3 class="font-bold text-lg">Passa ad Account Privato</h3>
 				<p class="py-4">
@@ -857,7 +888,7 @@
 				<button
 					class="btn {pendingAccountType === 'BUSINESS' ? 'btn-primary' : 'btn-warning'}"
 					on:click={confirmAccountTypeChange}
-					disabled={saving}
+					disabled={saving || (pendingAccountType === 'BUSINESS' && (!businessName.trim() || !vatNumber.trim()))}
 				>
 					{#if saving}
 						<span class="loading loading-spinner"></span>
