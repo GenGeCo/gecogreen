@@ -812,8 +812,17 @@
 
 <!-- Account Type Change Modal -->
 {#if showAccountTypeModal}
-	<div class="modal modal-open">
-		<div class="modal-box relative z-10">
+	<div class="fixed inset-0 z-50 flex items-center justify-center">
+		<!-- Backdrop -->
+		<div
+			class="fixed inset-0 bg-black/50"
+			on:click={() => { showAccountTypeModal = false; pendingAccountType = null; }}
+			on:keypress={() => {}}
+			role="button"
+			tabindex="-1"
+		></div>
+		<!-- Modal content -->
+		<div class="relative z-50 bg-base-100 rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
 			{#if pendingAccountType === 'BUSINESS'}
 				<h3 class="font-bold text-lg">Passa ad Account Business</h3>
 				<p class="py-4">
@@ -830,7 +839,7 @@
 				</div>
 
 				<!-- Campi obbligatori per Business -->
-				<div class="space-y-4 mb-4">
+				<div class="space-y-4 mb-4" style="position: relative; z-index: 100;">
 					<div class="form-control w-full">
 						<label class="label" for="modal-businessName">
 							<span class="label-text">Ragione Sociale *</span>
@@ -842,6 +851,7 @@
 							class="input input-bordered w-full"
 							placeholder="Nome Azienda Srl"
 							autocomplete="organization"
+							style="pointer-events: auto; position: relative; z-index: 101;"
 						/>
 					</div>
 					<div class="form-control w-full">
@@ -855,6 +865,7 @@
 							class="input input-bordered w-full"
 							placeholder="IT12345678901"
 							autocomplete="off"
+							style="pointer-events: auto; position: relative; z-index: 101;"
 						/>
 					</div>
 				</div>
@@ -899,6 +910,5 @@
 				</button>
 			</div>
 		</div>
-		<div class="modal-backdrop" on:click={() => { showAccountTypeModal = false; pendingAccountType = null; }} on:keypress={() => {}}></div>
 	</div>
 {/if}
