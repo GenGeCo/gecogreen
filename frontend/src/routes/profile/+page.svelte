@@ -812,17 +812,20 @@
 
 <!-- Account Type Change Modal -->
 {#if showAccountTypeModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center">
-		<!-- Backdrop -->
-		<div
-			class="fixed inset-0 bg-black/50"
-			on:click={() => { showAccountTypeModal = false; pendingAccountType = null; }}
-			on:keypress={() => {}}
-			role="button"
-			tabindex="-1"
-		></div>
-		<!-- Modal content -->
-		<div class="relative z-50 bg-base-100 rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+	<!-- Backdrop -->
+	<div
+		class="fixed inset-0 bg-black/50"
+		style="z-index: 9998;"
+		on:click={() => { showAccountTypeModal = false; pendingAccountType = null; }}
+		on:keypress={() => {}}
+		role="button"
+		tabindex="-1"
+	></div>
+	<!-- Modal content -->
+	<div
+		class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-base-100 rounded-lg shadow-xl p-6 w-full max-w-md mx-4"
+		style="z-index: 9999;"
+	>
 			{#if pendingAccountType === 'BUSINESS'}
 				<h3 class="font-bold text-lg">Passa ad Account Business</h3>
 				<p class="py-4">
@@ -910,5 +913,4 @@
 				</button>
 			</div>
 		</div>
-	</div>
 {/if}
