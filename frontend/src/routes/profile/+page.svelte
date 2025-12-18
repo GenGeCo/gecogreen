@@ -32,6 +32,7 @@
 	// Account type change modal
 	let showAccountTypeModal = false;
 	let pendingAccountType: 'PRIVATE' | 'BUSINESS' | null = null;
+	let dialogRef: HTMLDialogElement;
 
 	// New location form
 	let showLocationForm = false;
@@ -120,6 +121,18 @@
 	function requestAccountTypeChange(newType: 'PRIVATE' | 'BUSINESS') {
 		pendingAccountType = newType;
 		showAccountTypeModal = true;
+		// Use native dialog - guaranteed to work
+		if (dialogRef) {
+			dialogRef.showModal();
+		}
+	}
+
+	function closeModal() {
+		showAccountTypeModal = false;
+		pendingAccountType = null;
+		if (dialogRef) {
+			dialogRef.close();
+		}
 	}
 
 	async function confirmAccountTypeChange() {
@@ -129,12 +142,12 @@
 		if (pendingAccountType === 'BUSINESS') {
 			if (!businessName.trim()) {
 				error = 'Inserisci la Ragione Sociale per passare ad account Business';
-				showAccountTypeModal = false;
+				closeModal();
 				return;
 			}
 			if (!vatNumber.trim()) {
 				error = 'Inserisci la Partita IVA per passare ad account Business';
-				showAccountTypeModal = false;
+				closeModal();
 				return;
 			}
 		}
@@ -142,7 +155,7 @@
 		error = '';
 		success = '';
 		saving = true;
-		showAccountTypeModal = false;
+		closeModal();
 
 		try {
 			const profileData: Record<string, unknown> = {
@@ -810,110 +823,97 @@
 	{/if}
 </div>
 
-<!-- Account Type Change Modal -->
-{#if showAccountTypeModal}
-	<!-- Backdrop -->
-	<div
-		class="fixed inset-0 bg-black/50"
-		style="z-index: 9998;"
-		on:click={() => { showAccountTypeModal = false; pendingAccountType = null; }}
-		on:keypress={() => {}}
-		role="button"
-		tabindex="-1"
-		aria-label="Chiudi modal"
-	></div>
-	<!-- Modal content - stopPropagation prevents backdrop click -->
-	<div
-		class="fixed bg-base-100 rounded-lg shadow-xl p-6"
-		style="z-index: 9999; top: 50%; left: 50%; transform: translate(-50%, -50%); width: calc(100% - 2rem); max-width: 28rem;"
-		on:click|stopPropagation={() => {}}
-		on:keypress|stopPropagation={() => {}}
-		role="dialog"
-		aria-modal="true"
-	>
-			{#if pendingAccountType === 'BUSINESS'}
-				<h3 class="font-bold text-lg">Passa ad Account Business</h3>
-				<p class="py-4">
-					Stai per convertire il tuo account in <strong>Business</strong>.
-				</p>
-				<div class="bg-base-200 rounded-lg p-4 mb-4">
-					<p class="font-semibold mb-2">Con un account Business potrai:</p>
-					<ul class="list-disc list-inside text-sm space-y-1">
-						<li>Vendere come azienda con Partita IVA</li>
-						<li>Ricevere fatture elettroniche</li>
-						<li>Gestire più sedi di ritiro</li>
-						<li>Mostrare il nome aziendale nei prodotti</li>
-					</ul>
-				</div>
+<!-- Account Type Change Modal - Native HTML dialog -->
+<dialog
+	bind:this={dialogRef}
+	class="modal"
+	on:close={closeModal}
+>
+	<div class="modal-box">
+		{#if pendingAccountType === 'BUSINESS'}
+			<h3 class="font-bold text-lg">Passa ad Account Business</h3>
+			<p class="py-4">
+				Stai per convertire il tuo account in <strong>Business</strong>.
+			</p>
+			<div class="bg-base-200 rounded-lg p-4 mb-4">
+				<p class="font-semibold mb-2">Con un account Business potrai:</p>
+				<ul class="list-disc list-inside text-sm space-y-1">
+					<li>Vendere come azienda con Partita IVA</li>
+					<li>Ricevere fatture elettroniche</li>
+					<li>Gestire più sedi di ritiro</li>
+					<li>Mostrare il nome aziendale nei prodotti</li>
+				</ul>
+			</div>
 
-				<!-- Campi obbligatori per Business -->
-				<div class="space-y-4 mb-4">
-					<div class="form-control w-full">
-						<label class="label" for="modal-businessName">
-							<span class="label-text">Ragione Sociale *</span>
-						</label>
-						<input
-							type="text"
-							id="modal-businessName"
-							bind:value={businessName}
-							class="input input-bordered w-full"
-							placeholder="Nome Azienda Srl"
-							autocomplete="organization"
-						/>
-					</div>
-					<div class="form-control w-full">
-						<label class="label" for="modal-vatNumber">
-							<span class="label-text">Partita IVA *</span>
-						</label>
-						<input
-							type="text"
-							id="modal-vatNumber"
-							bind:value={vatNumber}
-							class="input input-bordered w-full"
-							placeholder="IT12345678901"
-							autocomplete="off"
-						/>
-					</div>
+			<!-- Campi obbligatori per Business -->
+			<div class="space-y-4 mb-4">
+				<div class="form-control w-full">
+					<label class="label" for="modal-businessName">
+						<span class="label-text">Ragione Sociale *</span>
+					</label>
+					<input
+						type="text"
+						id="modal-businessName"
+						bind:value={businessName}
+						class="input input-bordered w-full"
+						placeholder="Nome Azienda Srl"
+					/>
 				</div>
+				<div class="form-control w-full">
+					<label class="label" for="modal-vatNumber">
+						<span class="label-text">Partita IVA *</span>
+					</label>
+					<input
+						type="text"
+						id="modal-vatNumber"
+						bind:value={vatNumber}
+						class="input input-bordered w-full"
+						placeholder="IT12345678901"
+					/>
+				</div>
+			</div>
 
-				{#if !businessName.trim() || !vatNumber.trim()}
-					<div class="alert alert-warning">
-						<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-						</svg>
-						<span>Compila Ragione Sociale e Partita IVA per continuare.</span>
-					</div>
-				{/if}
-			{:else}
-				<h3 class="font-bold text-lg">Passa ad Account Privato</h3>
-				<p class="py-4">
-					Stai per convertire il tuo account in <strong>Privato</strong>.
-				</p>
-				<div class="alert alert-warning mb-4">
+			{#if !businessName.trim() || !vatNumber.trim()}
+				<div class="alert alert-warning">
 					<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
 					</svg>
-					<div>
-						<p class="font-semibold">Attenzione!</p>
-						<p class="text-sm">Passando a Privato perderai l'accesso alle funzionalità Business. I dati aziendali e le sedi rimarranno salvati nel caso volessi tornare a Business.</p>
-					</div>
+					<span>Compila Ragione Sociale e Partita IVA per continuare.</span>
 				</div>
 			{/if}
-
-			<div class="modal-action">
-				<button class="btn btn-ghost" on:click={() => { showAccountTypeModal = false; pendingAccountType = null; }}>
-					Annulla
-				</button>
-				<button
-					class="btn {pendingAccountType === 'BUSINESS' ? 'btn-primary' : 'btn-warning'}"
-					on:click={confirmAccountTypeChange}
-					disabled={saving || (pendingAccountType === 'BUSINESS' && (!businessName.trim() || !vatNumber.trim()))}
-				>
-					{#if saving}
-						<span class="loading loading-spinner"></span>
-					{/if}
-					Conferma
-				</button>
+		{:else}
+			<h3 class="font-bold text-lg">Passa ad Account Privato</h3>
+			<p class="py-4">
+				Stai per convertire il tuo account in <strong>Privato</strong>.
+			</p>
+			<div class="alert alert-warning mb-4">
+				<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+				</svg>
+				<div>
+					<p class="font-semibold">Attenzione!</p>
+					<p class="text-sm">Passando a Privato perderai l'accesso alle funzionalità Business. I dati aziendali e le sedi rimarranno salvati nel caso volessi tornare a Business.</p>
+				</div>
 			</div>
+		{/if}
+
+		<div class="modal-action">
+			<button class="btn btn-ghost" on:click={closeModal}>
+				Annulla
+			</button>
+			<button
+				class="btn {pendingAccountType === 'BUSINESS' ? 'btn-primary' : 'btn-warning'}"
+				on:click={confirmAccountTypeChange}
+				disabled={saving || (pendingAccountType === 'BUSINESS' && (!businessName.trim() || !vatNumber.trim()))}
+			>
+				{#if saving}
+					<span class="loading loading-spinner"></span>
+				{/if}
+				Conferma
+			</button>
 		</div>
-{/if}
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button>close</button>
+	</form>
+</dialog>
