@@ -820,11 +820,16 @@
 		on:keypress={() => {}}
 		role="button"
 		tabindex="-1"
+		aria-label="Chiudi modal"
 	></div>
-	<!-- Modal content -->
+	<!-- Modal content - stopPropagation prevents backdrop click -->
 	<div
-		class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-base-100 rounded-lg shadow-xl p-6 w-full max-w-md mx-4"
-		style="z-index: 9999;"
+		class="fixed bg-base-100 rounded-lg shadow-xl p-6"
+		style="z-index: 9999; top: 50%; left: 50%; transform: translate(-50%, -50%); width: calc(100% - 2rem); max-width: 28rem;"
+		on:click|stopPropagation={() => {}}
+		on:keypress|stopPropagation={() => {}}
+		role="dialog"
+		aria-modal="true"
 	>
 			{#if pendingAccountType === 'BUSINESS'}
 				<h3 class="font-bold text-lg">Passa ad Account Business</h3>
@@ -842,7 +847,7 @@
 				</div>
 
 				<!-- Campi obbligatori per Business -->
-				<div class="space-y-4 mb-4" style="position: relative; z-index: 100;">
+				<div class="space-y-4 mb-4">
 					<div class="form-control w-full">
 						<label class="label" for="modal-businessName">
 							<span class="label-text">Ragione Sociale *</span>
@@ -854,7 +859,6 @@
 							class="input input-bordered w-full"
 							placeholder="Nome Azienda Srl"
 							autocomplete="organization"
-							style="pointer-events: auto; position: relative; z-index: 101;"
 						/>
 					</div>
 					<div class="form-control w-full">
@@ -868,7 +872,6 @@
 							class="input input-bordered w-full"
 							placeholder="IT12345678901"
 							autocomplete="off"
-							style="pointer-events: auto; position: relative; z-index: 101;"
 						/>
 					</div>
 				</div>
