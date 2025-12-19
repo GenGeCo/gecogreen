@@ -138,6 +138,7 @@
 	async function confirmAccountTypeChange() {
 		if (!pendingAccountType) return;
 
+		const newAccountType = pendingAccountType; // Save before closeModal clears it
 		error = '';
 		success = '';
 		saving = true;
@@ -145,18 +146,17 @@
 
 		try {
 			const updated = await api.updateProfile({
-				account_type: pendingAccountType
+				account_type: newAccountType
 			});
 			auth.updateUser(updated);
-			accountType = pendingAccountType;
-			success = pendingAccountType === 'BUSINESS'
+			accountType = newAccountType;
+			success = newAccountType === 'BUSINESS'
 				? 'Account convertito in Business! Compila i dati aziendali qui sotto.'
 				: 'Account convertito in Privato!';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Errore cambio tipo account';
 		}
 		saving = false;
-		pendingAccountType = null;
 	}
 
 	async function uploadAvatar(event: Event) {
