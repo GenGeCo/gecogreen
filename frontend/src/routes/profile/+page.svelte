@@ -138,45 +138,19 @@
 	async function confirmAccountTypeChange() {
 		if (!pendingAccountType) return;
 
-		// Validation for BUSINESS
-		if (pendingAccountType === 'BUSINESS') {
-			if (!businessName.trim()) {
-				error = 'Inserisci la Ragione Sociale per passare ad account Business';
-				closeModal();
-				return;
-			}
-			if (!vatNumber.trim()) {
-				error = 'Inserisci la Partita IVA per passare ad account Business';
-				closeModal();
-				return;
-			}
-		}
-
 		error = '';
 		success = '';
 		saving = true;
 		closeModal();
 
 		try {
-			const profileData: Record<string, unknown> = {
+			const updated = await api.updateProfile({
 				account_type: pendingAccountType
-			};
-
-			// Include business data when switching to BUSINESS
-			if (pendingAccountType === 'BUSINESS') {
-				profileData.business_name = businessName;
-				profileData.vat_number = vatNumber;
-				profileData.fiscal_code = fiscalCode || undefined;
-				profileData.sdi_code = sdiCode || undefined;
-				profileData.pec_email = pecEmail || undefined;
-				profileData.billing_country = billingCountry || undefined;
-			}
-
-			const updated = await api.updateProfile(profileData);
+			});
 			auth.updateUser(updated);
 			accountType = pendingAccountType;
 			success = pendingAccountType === 'BUSINESS'
-				? 'Account convertito in Business!'
+				? 'Account convertito in Business! Compila i dati aziendali qui sotto.'
 				: 'Account convertito in Privato!';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Errore cambio tipo account';
@@ -464,8 +438,8 @@
 				</div>
 			</div>
 
-			<!-- Business Info (if business account or switching to business) -->
-			{#if accountType === 'BUSINESS' || pendingAccountType === 'BUSINESS'}
+			<!-- Business Info (if business account) -->
+			{#if accountType === 'BUSINESS'}
 				<div class="card bg-base-100 shadow">
 					<div class="card-body">
 						<h2 class="card-title text-lg">Informazioni Aziendali</h2>
@@ -844,43 +818,9 @@
 					<li>Mostrare il nome aziendale nei prodotti</li>
 				</ul>
 			</div>
-
-			<!-- Campi obbligatori per Business -->
-			<div class="space-y-4 mb-4">
-				<div class="form-control w-full">
-					<label class="label" for="modal-businessName">
-						<span class="label-text">Ragione Sociale *</span>
-					</label>
-					<input
-						type="text"
-						id="modal-businessName"
-						bind:value={businessName}
-						class="input input-bordered w-full"
-						placeholder="Nome Azienda Srl"
-					/>
-				</div>
-				<div class="form-control w-full">
-					<label class="label" for="modal-vatNumber">
-						<span class="label-text">Partita IVA *</span>
-					</label>
-					<input
-						type="text"
-						id="modal-vatNumber"
-						bind:value={vatNumber}
-						class="input input-bordered w-full"
-						placeholder="IT12345678901"
-					/>
-				</div>
-			</div>
-
-			{#if !businessName.trim() || !vatNumber.trim()}
-				<div class="alert alert-warning">
-					<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-					</svg>
-					<span>Compila Ragione Sociale e Partita IVA per continuare.</span>
-				</div>
-			{/if}
+			<p class="text-sm text-base-content/70">
+				Dopo la conferma potrai inserire i dati aziendali nella sezione profilo.
+			</p>
 		{:else}
 			<h3 class="font-bold text-lg">Passa ad Account Privato</h3>
 			<p class="py-4">
@@ -904,7 +844,7 @@
 			<button
 				class="btn {pendingAccountType === 'BUSINESS' ? 'btn-primary' : 'btn-warning'}"
 				on:click={confirmAccountTypeChange}
-				disabled={saving || (pendingAccountType === 'BUSINESS' && (!businessName.trim() || !vatNumber.trim()))}
+				disabled={saving}
 			>
 				{#if saving}
 					<span class="loading loading-spinner"></span>
