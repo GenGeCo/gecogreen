@@ -46,8 +46,9 @@ class ApiClient {
 			headers
 		});
 
-		// Handle 401 Unauthorized - token expired or invalid
-		if (response.status === 401) {
+		// Handle 401 Unauthorized - but NOT for auth endpoints (login/register)
+		const isAuthEndpoint = endpoint.startsWith('/auth/');
+		if (response.status === 401 && !isAuthEndpoint) {
 			this.setToken(null);
 			localStorage.removeItem('refresh_token');
 			localStorage.removeItem('user');
