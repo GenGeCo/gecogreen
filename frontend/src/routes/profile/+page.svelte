@@ -29,6 +29,9 @@
 	let pecEmail = '';
 	let billingCountry = 'IT';
 
+	// Business photos
+	let businessPhotos: string[] = [];
+
 	// Account type change modal
 	let showAccountTypeModal = false;
 	let pendingAccountType: 'PRIVATE' | 'BUSINESS' | null = null;
@@ -69,6 +72,7 @@
 		sdiCode = $currentUser.sdi_code || '';
 		pecEmail = $currentUser.pec_email || '';
 		billingCountry = $currentUser.billing_country || 'IT';
+		businessPhotos = $currentUser.business_photos || [];
 	}
 
 	async function loadProfile() {
@@ -107,6 +111,7 @@
 				profileData.sdi_code = sdiCode || undefined;
 				profileData.pec_email = pecEmail || undefined;
 				profileData.billing_country = billingCountry || undefined;
+				profileData.business_photos = businessPhotos;
 			}
 
 			const updated = await api.updateProfile(profileData);
@@ -181,6 +186,42 @@
 			error = e instanceof Error ? e.message : 'Errore upload';
 		}
 		saving = false;
+	}
+
+	async function uploadBusinessPhoto(event: Event) {
+		const input = event.target as HTMLInputElement;
+		if (!input.files || input.files.length === 0) return;
+
+		const file = input.files[0];
+		if (file.size > 5 * 1024 * 1024) {
+			error = 'Immagine troppo grande (max 5MB)';
+			return;
+		}
+
+		if (businessPhotos.length >= 6) {
+			error = 'Massimo 6 foto aziendali';
+			return;
+		}
+
+		error = '';
+		saving = true;
+		try {
+			const result = await api.uploadBusinessPhoto(file);
+			businessPhotos = [...businessPhotos, result.photo_url];
+			if ($currentUser) {
+				auth.updateUser({ ...$currentUser, business_photos: businessPhotos });
+			}
+			success = 'Foto aggiunta!';
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Errore upload';
+		}
+		saving = false;
+		input.value = '';
+	}
+
+	function removeBusinessPhoto(index: number) {
+		businessPhotos = businessPhotos.filter((_, i) => i !== index);
+		// Note: We'll save this when user clicks "Salva"
 	}
 
 	async function addLocation() {
@@ -548,6 +589,44 @@
 								/>
 								<span class="label-text">Ho più sedi di ritiro</span>
 							</label>
+						</div>
+
+						<!-- Business Photos -->
+						<h3 class="font-semibold mt-6 mb-2">Foto Aziendali</h3>
+						<p class="text-sm text-base-content/70 mb-4">
+							Aggiungi foto del tuo negozio, prodotti o attività (max 6 foto, 5MB ciascuna)
+						</p>
+
+						<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+							{#each businessPhotos as photo, index}
+								<div class="relative aspect-video bg-base-200 rounded-lg overflow-hidden group">
+									<img src={photo} alt="Foto aziendale {index + 1}" class="w-full h-full object-cover" />
+									<button
+										type="button"
+										class="absolute top-2 right-2 btn btn-circle btn-sm btn-error opacity-0 group-hover:opacity-100 transition-opacity"
+										on:click={() => removeBusinessPhoto(index)}
+									>
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+										</svg>
+									</button>
+								</div>
+							{/each}
+
+							{#if businessPhotos.length < 6}
+								<label class="aspect-video bg-base-200 rounded-lg border-2 border-dashed border-base-300 flex flex-col items-center justify-center cursor-pointer hover:bg-base-300 transition-colors">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+									</svg>
+									<span class="text-sm text-base-content/50 mt-1">Aggiungi foto</span>
+									<input
+										type="file"
+										accept="image/*"
+										class="hidden"
+										on:change={uploadBusinessPhoto}
+									/>
+								</label>
+							{/if}
 						</div>
 					</div>
 				</div>
