@@ -47,8 +47,8 @@
 		is_primary: false
 	};
 
-	// Redirect if not authenticated
-	$: if ($isAuthenticated !== undefined && !$isAuthenticated) {
+	// Redirect if not authenticated (only in browser, not during SSR)
+	$: if (typeof window !== 'undefined' && $isAuthenticated !== undefined && !$isAuthenticated) {
 		goto('/login');
 	}
 
