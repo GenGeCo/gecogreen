@@ -12,7 +12,7 @@
 	onMount(async () => {
 		// Check health
 		try {
-			const res = await fetch(`${apiUrl}/health`);
+			const res = await fetch(`${apiUrl}/api/v1/health`);
 			if (res.ok) {
 				const data = await res.json();
 				apiStatus = data.status === 'healthy' ? 'Online' : 'Unhealthy';
