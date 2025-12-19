@@ -14,6 +14,12 @@
 	body {
 		@apply bg-base-100 text-base-content;
 	}
+
+	/* Placeholder styling - più chiaro del testo normale */
+	input::placeholder,
+	textarea::placeholder {
+		@apply text-base-content/40 italic;
+	}
 }
 
 /* Custom components */
