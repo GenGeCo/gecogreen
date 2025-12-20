@@ -55,7 +55,7 @@ func main() {
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret)
 
 	// Category repository
-	categoryRepo := repository.NewCategoryRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db.Pool)
 
 	// Handlers
 	healthHandler := handlers.NewHealthHandler(db)
