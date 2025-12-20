@@ -2,13 +2,18 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import { auth } from '$lib/stores/auth';
+	import { auth, isAuthenticated } from '$lib/stores/auth';
 
 	let email = '';
 	let password = '';
 	let error = '';
 	let loading = false;
 	let sessionExpired = false;
+
+	// Redirect if already logged in
+	$: if (typeof window !== 'undefined' && $isAuthenticated) {
+		goto('/');
+	}
 
 	onMount(() => {
 		// Check if redirected due to expired session

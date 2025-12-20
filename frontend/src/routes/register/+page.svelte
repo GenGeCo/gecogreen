@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { auth } from '$lib/stores/auth';
+	import { auth, isAuthenticated } from '$lib/stores/auth';
 	import type { AccountType } from '$lib/api';
 
 	let email = '';
@@ -22,6 +22,11 @@
 	let postalCode = '';
 	let error = '';
 	let loading = false;
+
+	// Redirect if already logged in
+	$: if (typeof window !== 'undefined' && $isAuthenticated) {
+		goto('/');
+	}
 
 	async function handleSubmit() {
 		error = '';
