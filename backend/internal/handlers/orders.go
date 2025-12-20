@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"time"
@@ -636,7 +637,7 @@ func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
 	switch event.Type {
 	case "checkout.session.completed":
 		var session stripe.CheckoutSession
-		if err := event.Data.Raw.Unmarshal(&session); err != nil {
+		if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
 			fmt.Printf("Error parsing checkout session: %v\n", err)
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid event data"})
 		}
@@ -658,7 +659,7 @@ func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
 
 	case "checkout.session.expired":
 		var session stripe.CheckoutSession
-		if err := event.Data.Raw.Unmarshal(&session); err != nil {
+		if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid event data"})
 		}
 
