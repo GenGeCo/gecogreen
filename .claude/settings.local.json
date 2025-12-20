@@ -88,7 +88,8 @@
       "Bash(ssh root@77.42.35.68 \"source /opt/gecogreen/app/backend/.env && psql postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c \"\"SELECT column_name FROM information_schema.columns WHERE table_name=''products'' ORDER BY ordinal_position;\"\" 2>&1\")",
       "Bash(ssh root@77.42.35.68 \"cd /opt/gecogreen/app && git fetch origin && git reset --hard origin/main && cd backend && /usr/local/go/bin/go build -o gecogreen-server ./cmd/server && pkill -f gecogreen-server; sleep 2; nohup ./gecogreen-server > /var/log/gecogreen.log 2>&1 & sleep 3; tail -12 /var/log/gecogreen.log\")",
       "Bash(ssh root@77.42.35.68 \"fuser -k 8080/tcp 2>/dev/null; sleep 2; cd /opt/gecogreen/app/backend && nohup ./gecogreen-server > /var/log/gecogreen.log 2>&1 & sleep 3; tail -10 /var/log/gecogreen.log && echo ''---'' && curl -s http://localhost:8080/health | head -1\")",
-      "Bash(ssh root@77.42.35.68:*)"
+      "Bash(ssh root@77.42.35.68:*)",
+      "Bash(ping:*)"
     ]
   }
 }

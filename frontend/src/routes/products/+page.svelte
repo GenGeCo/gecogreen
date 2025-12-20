@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api, type Product } from '$lib/api';
+	import { api, type Product, type Category } from '$lib/api';
 
 	let products: Product[] = [];
+	let categories: Category[] = [];
 	let loading = true;
 	let error = '';
 	let totalPages = 1;
@@ -10,11 +11,20 @@
 
 	// Filters
 	let search = '';
+	let categoryId = '';
 	let minPrice = '';
 	let maxPrice = '';
 	let city = '';
 	let sortBy = 'created_at';
 	let sortOrder = 'desc';
+
+	async function loadCategories() {
+		try {
+			categories = await api.getCategories();
+		} catch (e) {
+			console.error('Errore caricamento categorie:', e);
+		}
+	}
 
 	async function loadProducts() {
 		loading = true;
@@ -24,6 +34,7 @@
 				page: currentPage,
 				per_page: 12,
 				search: search || undefined,
+				category_id: categoryId || undefined,
 				min_price: minPrice ? parseFloat(minPrice) : undefined,
 				max_price: maxPrice ? parseFloat(maxPrice) : undefined,
 				city: city || undefined,
@@ -45,6 +56,7 @@
 
 	function clearFilters() {
 		search = '';
+		categoryId = '';
 		minPrice = '';
 		maxPrice = '';
 		city = '';
@@ -70,7 +82,10 @@
 		return Math.round(((original - current) / original) * 100);
 	}
 
-	onMount(loadProducts);
+	onMount(() => {
+		loadCategories();
+		loadProducts();
+	});
 </script>
 
 <svelte:head>
@@ -83,7 +98,7 @@
 	<!-- Filters -->
 	<div class="card bg-base-100 shadow mb-6">
 		<div class="card-body">
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
 				<div class="form-control">
 					<input
 						type="text"
@@ -92,6 +107,14 @@
 						bind:value={search}
 						on:keypress={(e) => e.key === 'Enter' && applyFilters()}
 					/>
+				</div>
+				<div class="form-control">
+					<select class="select select-bordered" bind:value={categoryId} on:change={applyFilters}>
+						<option value="">Tutte le categorie</option>
+						{#each categories as cat}
+							<option value={cat.id}>{cat.name}</option>
+						{/each}
+					</select>
 				</div>
 				<div class="form-control">
 					<input
