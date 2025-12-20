@@ -53,26 +53,41 @@
 	}
 
 	// Generate image previews when files change
-	$: if (productImageFiles) {
-		productImagePreviews = [];
-		for (let i = 0; i < productImageFiles.length && i < 5; i++) {
+	function updateProductPreviews() {
+		if (!productImageFiles || productImageFiles.length === 0) {
+			productImagePreviews = [];
+			return;
+		}
+		const newPreviews: string[] = [];
+		let loaded = 0;
+		const total = Math.min(productImageFiles.length, 5);
+		for (let i = 0; i < total; i++) {
 			const reader = new FileReader();
 			reader.onload = (e) => {
-				productImagePreviews = [...productImagePreviews, e.target?.result as string];
+				newPreviews[i] = e.target?.result as string;
+				loaded++;
+				if (loaded === total) {
+					productImagePreviews = newPreviews.filter(Boolean);
+				}
 			};
 			reader.readAsDataURL(productImageFiles[i]);
 		}
 	}
 
-	$: if (expiryPhotoFile && expiryPhotoFile.length > 0) {
+	function updateExpiryPreview() {
+		if (!expiryPhotoFile || expiryPhotoFile.length === 0) {
+			expiryPhotoPreviews = [];
+			return;
+		}
 		const reader = new FileReader();
 		reader.onload = (e) => {
 			expiryPhotoPreviews = [e.target?.result as string];
 		};
 		reader.readAsDataURL(expiryPhotoFile[0]);
-	} else {
-		expiryPhotoPreviews = [];
 	}
+
+	$: productImageFiles, updateProductPreviews();
+	$: expiryPhotoFile, updateExpiryPreview();
 
 	// Load user's pickup locations
 	onMount(async () => {
@@ -617,6 +632,24 @@
 							</div>
 						{/if}
 					{/if}
+
+					<!-- Digital Freight Forwarders (Coming Soon) -->
+					<div class="form-control opacity-60">
+						<label class="label cursor-not-allowed justify-start gap-3">
+							<input
+								type="checkbox"
+								disabled
+								class="checkbox"
+							/>
+							<div>
+								<span class="label-text font-medium">
+									Spedizione Industriale
+									<span class="badge badge-sm badge-info ml-2">Coming Soon</span>
+								</span>
+								<p class="text-xs text-base-content/60">Spedizionieri per bancali e carichi industriali (Digital Freight Forwarders)</p>
+							</div>
+						</label>
+					</div>
 				</div>
 
 				<div class="divider"></div>
