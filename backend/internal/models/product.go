@@ -34,6 +34,7 @@ const (
 	ShippingBuyerArranges     ShippingMethod = "BUYER_ARRANGES"
 	ShippingPlatformManaged   ShippingMethod = "PLATFORM_MANAGED"
 	ShippingDigitalForwarders ShippingMethod = "DIGITAL_FORWARDERS" // Coming Soon
+	ShippingBoth              ShippingMethod = "BOTH"               // Both pickup and shipping available
 )
 
 // QuantityUnit represents the unit of measurement for quantity
@@ -59,9 +60,10 @@ type Product struct {
 	Price           float64        `json:"price"`
 	OriginalPrice   *float64       `json:"original_price,omitempty"`
 	ListingType     ListingType    `json:"listing_type"`
-	ShippingMethod     ShippingMethod `json:"shipping_method"`
-	ShippingCost       float64        `json:"shipping_cost"`
-	Quantity           int            `json:"quantity"`
+	ShippingMethod      ShippingMethod `json:"shipping_method"`
+	ShippingCost        float64        `json:"shipping_cost"`
+	PickupLocationIDs   []uuid.UUID    `json:"pickup_location_ids,omitempty"`
+	Quantity            int            `json:"quantity"`
 	QuantityAvail      int            `json:"quantity_available"`
 	QuantityUnit       QuantityUnit   `json:"quantity_unit"`
 	QuantityUnitCustom *string        `json:"quantity_unit_custom,omitempty"`
@@ -126,6 +128,7 @@ type CreateProductRequest struct {
 	ListingType         ListingType    `json:"listing_type"`
 	ShippingMethod      ShippingMethod `json:"shipping_method"`
 	ShippingCost        float64        `json:"shipping_cost"`
+	PickupLocationIDs   []uuid.UUID    `json:"pickup_location_ids,omitempty"`
 	ExpiryDate          *time.Time     `json:"expiry_date,omitempty"`
 	IsDutchAuction      bool           `json:"is_dutch_auction"`
 	DutchStartPrice     *float64       `json:"dutch_start_price,omitempty"`

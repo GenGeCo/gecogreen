@@ -425,8 +425,9 @@ export interface Product {
 	price: number;
 	original_price?: number;
 	listing_type: 'SALE' | 'GIFT';
-	shipping_method: 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES' | 'PLATFORM_MANAGED' | 'DIGITAL_FORWARDERS';
+	shipping_method: 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES' | 'PLATFORM_MANAGED' | 'DIGITAL_FORWARDERS' | 'BOTH';
 	shipping_cost: number;
+	pickup_location_ids?: string[];
 	quantity: number;
 	quantity_available: number;
 	quantity_unit: QuantityUnit;
@@ -468,8 +469,9 @@ export interface CreateProductRequest {
 	quantity_unit_custom?: string;
 	category_id?: string;
 	listing_type?: 'SALE' | 'GIFT';
-	shipping_method?: 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES' | 'DIGITAL_FORWARDERS';
+	shipping_method?: 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES' | 'DIGITAL_FORWARDERS' | 'BOTH';
 	shipping_cost?: number;
+	pickup_location_ids?: string[];
 	expiry_date?: string;
 	is_dutch_auction?: boolean;
 	dutch_start_price?: number;

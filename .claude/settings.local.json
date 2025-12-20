@@ -71,7 +71,12 @@
       "Bash(ssh root@77.42.35.68 'cat > /etc/systemd/system/webhook.service << \"\"SERVICE\"\"\n[Unit]\nDescription=GitHub Webhook for GecoGreen\nAfter=network.target\n\n[Service]\nType=simple\nExecStart=/usr/bin/webhook -hooks /opt/gecogreen/hooks.json -port 9000 -verbose\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\nSERVICE\nsystemctl daemon-reload && systemctl enable webhook && systemctl start webhook && systemctl status webhook')",
       "Bash(ssh root@77.42.35.68 'ufw allow 9000/tcp 2>/dev/null || iptables -A INPUT -p tcp --dport 9000 -j ACCEPT; echo \"\"Porta 9000 aperta!\"\"')",
       "Bash(ssh:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(GOOS=linux GOARCH=amd64 go build:*)",
+      "Bash(npm run build:*)",
+      "Bash(cmd.exe /c \"go build -o NUL ./cmd/server\")",
+      "Bash(/c/Program Files/Go/bin/go build:*)",
+      "Bash(where go:*)"
     ]
   }
 }

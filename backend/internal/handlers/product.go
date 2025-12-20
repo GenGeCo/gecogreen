@@ -128,6 +128,7 @@ func (h *ProductHandler) Create(c *fiber.Ctx) error {
 		ListingType:         req.ListingType,
 		ShippingMethod:      req.ShippingMethod,
 		ShippingCost:        req.ShippingCost,
+		PickupLocationIDs:   req.PickupLocationIDs,
 		ExpiryDate:          req.ExpiryDate,
 		IsDutchAuction:      req.IsDutchAuction,
 		DutchStartPrice:     req.DutchStartPrice,

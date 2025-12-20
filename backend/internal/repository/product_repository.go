@@ -34,14 +34,14 @@ func (r *ProductRepository) Create(ctx context.Context, product *models.Product)
 	query := `
 		INSERT INTO products (
 			id, seller_id, category_id, title, description, price, original_price,
-			listing_type, shipping_method, shipping_cost, quantity, quantity_available,
+			listing_type, shipping_method, shipping_cost, pickup_location_ids, quantity, quantity_available,
 			expiry_date, is_dutch_auction, dutch_start_price, dutch_decrease_amount,
 			dutch_decrease_hours, dutch_min_price, dutch_started_at,
 			city, province, postal_code, latitude, longitude,
 			images, status, created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-			$17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28
+			$17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
 		)
 	`
 
@@ -71,6 +71,12 @@ func (r *ProductRepository) Create(ctx context.Context, product *models.Product)
 		imagesJSON = []byte("[]")
 	}
 
+	// Convert pickup_location_ids to JSON
+	pickupLocationIDsJSON, _ := json.Marshal(product.PickupLocationIDs)
+	if product.PickupLocationIDs == nil {
+		pickupLocationIDsJSON = []byte("[]")
+	}
+
 	_, err := r.pool.Exec(ctx, query,
 		product.ID,
 		product.SellerID,
@@ -82,6 +88,7 @@ func (r *ProductRepository) Create(ctx context.Context, product *models.Product)
 		product.ListingType,
 		product.ShippingMethod,
 		product.ShippingCost,
+		pickupLocationIDsJSON,
 		product.Quantity,
 		product.QuantityAvail,
 		product.ExpiryDate,
@@ -109,7 +116,8 @@ func (r *ProductRepository) Create(ctx context.Context, product *models.Product)
 func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Product, error) {
 	query := `
 		SELECT p.id, p.seller_id, p.category_id, p.title, p.description, p.price, p.original_price,
-			   p.listing_type::text, p.shipping_method::text, p.shipping_cost, p.quantity, p.quantity_available,
+			   p.listing_type::text, p.shipping_method::text, p.shipping_cost, COALESCE(p.pickup_location_ids, '[]'),
+			   p.quantity, p.quantity_available,
 			   p.expiry_date, p.expiry_photo_url, p.is_dutch_auction, p.dutch_start_price,
 			   p.dutch_decrease_amount, p.dutch_decrease_hours, p.dutch_min_price, p.dutch_started_at,
 			   COALESCE(p.city, ''), COALESCE(p.province, ''), COALESCE(p.postal_code, ''), p.latitude, p.longitude,
@@ -122,13 +130,13 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 
 	product := &models.Product{}
 	seller := &models.UserProfile{}
-	var imagesJSON []byte
+	var imagesJSON, pickupLocationIDsJSON []byte
 	var listingType, shippingMethod, status string
 
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&product.ID, &product.SellerID, &product.CategoryID, &product.Title, &product.Description,
 		&product.Price, &product.OriginalPrice, &listingType, &shippingMethod,
-		&product.ShippingCost, &product.Quantity, &product.QuantityAvail,
+		&product.ShippingCost, &pickupLocationIDsJSON, &product.Quantity, &product.QuantityAvail,
 		&product.ExpiryDate, &product.ExpiryPhotoURL, &product.IsDutchAuction, &product.DutchStartPrice,
 		&product.DutchDecreaseAmount, &product.DutchDecreaseHours, &product.DutchMinPrice, &product.DutchStartedAt,
 		&product.City, &product.Province, &product.PostalCode, &product.Latitude, &product.Longitude,
@@ -151,6 +159,11 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 	// Parse images JSON
 	if imagesJSON != nil {
 		_ = json.Unmarshal(imagesJSON, &product.Images)
+	}
+
+	// Parse pickup_location_ids JSON
+	if pickupLocationIDsJSON != nil {
+		_ = json.Unmarshal(pickupLocationIDsJSON, &product.PickupLocationIDs)
 	}
 
 	product.Seller = seller

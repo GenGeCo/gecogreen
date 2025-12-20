@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { api, type CreateProductRequest } from '$lib/api';
+	import { api, type CreateProductRequest, type Location } from '$lib/api';
 	import { isAuthenticated, currentUser } from '$lib/stores/auth';
 
 	let loading = false;
@@ -8,6 +9,10 @@
 	let productImageFiles: FileList | null = null;
 	let expiryPhotoFile: FileList | null = null;
 	let uploadingImages = false;
+
+	// Image previews
+	let productImagePreviews: string[] = [];
+	let expiryPhotoPreviews: string[] = [];
 
 	// Form data
 	let title = '';
@@ -18,11 +23,16 @@
 	let quantityUnit: import('$lib/api').QuantityUnit = 'PIECE';
 	let quantityUnitCustom = '';
 	let listingType: 'SALE' | 'GIFT' = 'SALE';
-	let shippingMethod: 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES' | 'DIGITAL_FORWARDERS' = 'PICKUP';
-	let shippingCost = 0;
 	let expiryDate = '';
 	let city = '';
 	let province = '';
+
+	// Shipping options (checkboxes)
+	let canShip = false;
+	let canPickup = true;
+	let shippingCost = 0;
+	let selectedLocationIds: string[] = [];
+	let userLocations: Location[] = [];
 
 	// Dutch Auction
 	let isDutchAuction = false;
@@ -40,6 +50,48 @@
 	$: if ($currentUser && !city) {
 		city = $currentUser.city || '';
 		province = $currentUser.province || '';
+	}
+
+	// Generate image previews when files change
+	$: if (productImageFiles) {
+		productImagePreviews = [];
+		for (let i = 0; i < productImageFiles.length && i < 5; i++) {
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				productImagePreviews = [...productImagePreviews, e.target?.result as string];
+			};
+			reader.readAsDataURL(productImageFiles[i]);
+		}
+	}
+
+	$: if (expiryPhotoFile && expiryPhotoFile.length > 0) {
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			expiryPhotoPreviews = [e.target?.result as string];
+		};
+		reader.readAsDataURL(expiryPhotoFile[0]);
+	} else {
+		expiryPhotoPreviews = [];
+	}
+
+	// Load user's pickup locations
+	onMount(async () => {
+		try {
+			const profile = await api.getProfile();
+			userLocations = profile.locations || [];
+			// Auto-select all locations by default
+			selectedLocationIds = userLocations.map(l => l.id);
+		} catch (e) {
+			console.error('Error loading locations:', e);
+		}
+	});
+
+	function toggleLocation(locationId: string) {
+		if (selectedLocationIds.includes(locationId)) {
+			selectedLocationIds = selectedLocationIds.filter(id => id !== locationId);
+		} else {
+			selectedLocationIds = [...selectedLocationIds, locationId];
+		}
 	}
 
 	async function handleSubmit() {
@@ -61,8 +113,24 @@
 			error = 'La quantità deve essere almeno 1';
 			return;
 		}
+		if (!canShip && !canPickup) {
+			error = 'Seleziona almeno un metodo di consegna (spedizione o ritiro)';
+			return;
+		}
+		if (canPickup && selectedLocationIds.length === 0 && userLocations.length > 0) {
+			error = 'Seleziona almeno una sede per il ritiro';
+			return;
+		}
 
 		loading = true;
+
+		// Determine shipping method based on checkboxes
+		let shippingMethod: 'PICKUP' | 'SELLER_SHIPS' | 'BOTH' = 'PICKUP';
+		if (canShip && canPickup) {
+			shippingMethod = 'BOTH';
+		} else if (canShip) {
+			shippingMethod = 'SELLER_SHIPS';
+		}
 
 		try {
 			const productData: CreateProductRequest = {
@@ -75,7 +143,7 @@
 				quantity_unit_custom: quantityUnit === 'CUSTOM' ? quantityUnitCustom : undefined,
 				listing_type: listingType,
 				shipping_method: shippingMethod,
-				shipping_cost: shippingMethod === 'PICKUP' || shippingMethod === 'DIGITAL_FORWARDERS' ? 0 : shippingCost,
+				shipping_cost: canShip ? shippingCost : 0,
 				expiry_date: expiryDate || undefined,
 				is_dutch_auction: isDutchAuction,
 				dutch_start_price: isDutchAuction ? dutchStartPrice : undefined,
@@ -83,7 +151,8 @@
 				dutch_decrease_hours: isDutchAuction ? dutchDecreaseHours : undefined,
 				dutch_min_price: isDutchAuction ? dutchMinPrice : undefined,
 				city: city || undefined,
-				province: province || undefined
+				province: province || undefined,
+				pickup_location_ids: canPickup ? selectedLocationIds : undefined
 			};
 
 			const product = await api.createProduct(productData);
@@ -189,6 +258,15 @@
 					<label class="label">
 						<span class="label-text-alt">Foto generali del prodotto. JPG, PNG o WebP. Max 5MB per foto.</span>
 					</label>
+					{#if productImagePreviews.length > 0}
+						<div class="flex gap-2 mt-2 flex-wrap">
+							{#each productImagePreviews as preview, i}
+								<div class="relative">
+									<img src={preview} alt="Anteprima {i + 1}" class="w-20 h-20 object-cover rounded-lg border" />
+								</div>
+							{/each}
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -224,6 +302,11 @@
 					<label class="label">
 						<span class="label-text-alt">Foto che mostra chiaramente la data di scadenza sul prodotto. Max 5MB.</span>
 					</label>
+					{#if expiryPhotoPreviews.length > 0}
+						<div class="mt-2">
+							<img src={expiryPhotoPreviews[0]} alt="Anteprima scadenza" class="w-24 h-24 object-cover rounded-lg border" />
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -443,46 +526,100 @@
 			</div>
 		{/if}
 
-		<!-- Shipping -->
+		<!-- Shipping & Pickup -->
 		<div class="card bg-base-100 shadow">
 			<div class="card-body">
-				<h2 class="card-title text-lg">Spedizione</h2>
+				<h2 class="card-title text-lg">Consegna</h2>
 
-				<div class="form-control">
-					<label class="label">
-						<span class="label-text">Metodo di Consegna</span>
-					</label>
-					<select class="select select-bordered" bind:value={shippingMethod}>
-						<option value="PICKUP">Ritiro in sede</option>
-						<option value="SELLER_SHIPS">Spedisco io</option>
-						<option value="BUYER_ARRANGES">Organizza l'acquirente</option>
-						<option value="DIGITAL_FORWARDERS">Digital Freight Forwarders (Coming Soon)</option>
-					</select>
-					{#if shippingMethod === 'DIGITAL_FORWARDERS'}
-						<label class="label">
-							<span class="label-text-alt text-warning">
-								📦 Funzionalità in arrivo! Integreremo servizi di spedizione digitali per logistica avanzata.
-							</span>
+				<div class="space-y-4">
+					<!-- Shipping option -->
+					<div class="form-control">
+						<label class="label cursor-pointer justify-start gap-3">
+							<input
+								type="checkbox"
+								bind:checked={canShip}
+								class="checkbox checkbox-primary"
+							/>
+							<div>
+								<span class="label-text font-medium">Spedizione disponibile</span>
+								<p class="text-xs text-base-content/60">Puoi spedire il prodotto all'acquirente</p>
+							</div>
 						</label>
+					</div>
+
+					{#if canShip}
+						<div class="form-control ml-8">
+							<label class="label" for="shippingCost">
+								<span class="label-text">Costo Spedizione (€)</span>
+							</label>
+							<input
+								type="number"
+								id="shippingCost"
+								bind:value={shippingCost}
+								class="input input-bordered w-32"
+								min="0"
+								step="0.01"
+								placeholder="0.00"
+							/>
+							<label class="label">
+								<span class="label-text-alt">0 = spedizione gratuita</span>
+							</label>
+						</div>
+					{/if}
+
+					<!-- Pickup option -->
+					<div class="form-control">
+						<label class="label cursor-pointer justify-start gap-3">
+							<input
+								type="checkbox"
+								bind:checked={canPickup}
+								class="checkbox checkbox-primary"
+							/>
+							<div>
+								<span class="label-text font-medium">Ritiro in sede</span>
+								<p class="text-xs text-base-content/60">L'acquirente può ritirare il prodotto</p>
+							</div>
+						</label>
+					</div>
+
+					{#if canPickup}
+						{#if userLocations.length > 0}
+							<div class="ml-8 space-y-2">
+								<label class="label">
+									<span class="label-text">Seleziona le sedi per il ritiro</span>
+								</label>
+								{#each userLocations as loc}
+									<label class="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-base-200">
+										<input
+											type="checkbox"
+											checked={selectedLocationIds.includes(loc.id)}
+											on:change={() => toggleLocation(loc.id)}
+											class="checkbox checkbox-sm"
+										/>
+										<div class="flex-1">
+											<span class="font-medium">{loc.name}</span>
+											<span class="text-sm text-base-content/60 ml-2">
+												{loc.address_city}{loc.address_province ? `, ${loc.address_province}` : ''}
+											</span>
+										</div>
+									</label>
+								{/each}
+							</div>
+						{:else}
+							<div class="alert alert-warning ml-8">
+								<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+								</svg>
+								<div>
+									<span>Non hai ancora aggiunto sedi di ritiro.</span>
+									<a href="/profile" class="link link-primary">Aggiungi una sede</a>
+								</div>
+							</div>
+						{/if}
 					{/if}
 				</div>
 
-				{#if shippingMethod !== 'PICKUP' && shippingMethod !== 'DIGITAL_FORWARDERS'}
-					<div class="form-control">
-						<label class="label" for="shippingCost">
-							<span class="label-text">Costo Spedizione (€)</span>
-						</label>
-						<input
-							type="number"
-							id="shippingCost"
-							bind:value={shippingCost}
-							class="input input-bordered w-32"
-							min="0"
-							step="0.01"
-							placeholder="0.00"
-						/>
-					</div>
-				{/if}
+				<div class="divider"></div>
 
 				<div class="grid grid-cols-2 gap-4">
 					<div class="form-control">
@@ -496,6 +633,9 @@
 							class="input input-bordered"
 							placeholder="es. Milano"
 						/>
+						<label class="label">
+							<span class="label-text-alt">Visibile agli acquirenti prima dell'acquisto</span>
+						</label>
 					</div>
 					<div class="form-control">
 						<label class="label" for="province">
