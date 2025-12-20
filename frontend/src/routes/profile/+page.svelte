@@ -40,6 +40,91 @@
 	// Track if form has been initialized
 	let formInitialized = false;
 
+	// Field-level validation errors (real-time)
+	let fieldErrors: Record<string, string> = {};
+
+	// Validation functions
+	const nameRegex = /^[\p{L}\s'-]{2,50}$/u;
+
+	function validateFirstName(value: string): string {
+		if (!value.trim()) return 'Nome obbligatorio';
+		if (!nameRegex.test(value.trim())) return '2-50 caratteri, solo lettere';
+		return '';
+	}
+
+	function validateLastName(value: string): string {
+		if (!value.trim()) return 'Cognome obbligatorio';
+		if (!nameRegex.test(value.trim())) return '2-50 caratteri, solo lettere';
+		return '';
+	}
+
+	function validatePhone(value: string): string {
+		if (!value) return '';
+		const clean = value.replace(/[\s\-\.]/g, '');
+		if (!/^\+?[0-9]{6,15}$/.test(clean)) return 'Formato: +39 123 456 7890';
+		return '';
+	}
+
+	function validatePostalCode(value: string): string {
+		if (!value) return '';
+		if (!/^[A-Za-z0-9\s-]{3,10}$/.test(value)) return 'CAP non valido';
+		return '';
+	}
+
+	function validateBusinessName(value: string): string {
+		if (accountType !== 'BUSINESS') return '';
+		if (!value.trim() || value.trim().length < 2) return 'Min 2 caratteri';
+		return '';
+	}
+
+	function validateVatNumber(value: string): string {
+		if (accountType !== 'BUSINESS') return '';
+		if (!value.trim()) return 'P.IVA obbligatoria';
+		const clean = value.replace(/[\s\-\.]/g, '');
+		if (!/^[A-Za-z0-9]{5,20}$/.test(clean)) return 'Formato non valido';
+		return '';
+	}
+
+	function validateSdiCode(value: string): string {
+		if (accountType !== 'BUSINESS' || billingCountry !== 'IT') return '';
+		if (!value && !pecEmail) return 'SDI o PEC richiesto';
+		if (value && !/^[A-Za-z0-9]{7}$/.test(value)) return 'Esattamente 7 caratteri';
+		return '';
+	}
+
+	function validatePecEmail(value: string): string {
+		if (accountType !== 'BUSINESS' || billingCountry !== 'IT') return '';
+		if (!value && !sdiCode) return 'PEC o SDI richiesto';
+		if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Email non valida';
+		return '';
+	}
+
+	// Real-time validation on input
+	function validateField(field: string) {
+		switch(field) {
+			case 'firstName': fieldErrors.firstName = validateFirstName(firstName); break;
+			case 'lastName': fieldErrors.lastName = validateLastName(lastName); break;
+			case 'phone': fieldErrors.phone = validatePhone(phone); break;
+			case 'postalCode': fieldErrors.postalCode = validatePostalCode(postalCode); break;
+			case 'businessName': fieldErrors.businessName = validateBusinessName(businessName); break;
+			case 'vatNumber': fieldErrors.vatNumber = validateVatNumber(vatNumber); break;
+			case 'sdiCode':
+				fieldErrors.sdiCode = validateSdiCode(sdiCode);
+				fieldErrors.pecEmail = validatePecEmail(pecEmail);
+				break;
+			case 'pecEmail':
+				fieldErrors.pecEmail = validatePecEmail(pecEmail);
+				fieldErrors.sdiCode = validateSdiCode(sdiCode);
+				break;
+		}
+		fieldErrors = fieldErrors; // Trigger reactivity
+	}
+
+	// Check if form has any errors
+	function hasErrors(): boolean {
+		return Object.values(fieldErrors).some(e => e !== '');
+	}
+
 	// New location form
 	let showLocationForm = false;
 	let newLocation = {
@@ -94,61 +179,25 @@
 		error = '';
 		success = '';
 
-		// Basic validation
-		const nameRegex = /^[\p{L}\s'-]{2,50}$/u; // Letters, spaces, apostrophes, hyphens (2-50 chars)
-
-		if (!firstName.trim() || !nameRegex.test(firstName.trim())) {
-			error = 'Nome non valido (2-50 caratteri, solo lettere)';
-			return;
-		}
-
-		if (!lastName.trim() || !nameRegex.test(lastName.trim())) {
-			error = 'Cognome non valido (2-50 caratteri, solo lettere)';
-			return;
-		}
-
-		// Phone validation (optional, but if provided must be valid)
-		if (phone) {
-			const phoneClean = phone.replace(/[\s\-\.]/g, '');
-			if (!/^\+?[0-9]{6,15}$/.test(phoneClean)) {
-				error = 'Numero di telefono non valido';
-				return;
-			}
-		}
-
-		// Postal code validation (optional, alphanumeric 3-10 chars)
-		if (postalCode && !/^[A-Za-z0-9\s-]{3,10}$/.test(postalCode)) {
-			error = 'CAP non valido';
-			return;
-		}
-
-		// Business validation
+		// Validate all fields
+		fieldErrors.firstName = validateFirstName(firstName);
+		fieldErrors.lastName = validateLastName(lastName);
+		fieldErrors.phone = validatePhone(phone);
+		fieldErrors.postalCode = validatePostalCode(postalCode);
 		if (accountType === 'BUSINESS') {
-			if (!businessName.trim() || businessName.trim().length < 2) {
-				error = 'Ragione sociale obbligatoria (min 2 caratteri)';
-				return;
-			}
-
-			if (!vatNumber.trim() || !/^[A-Za-z0-9]{5,20}$/.test(vatNumber.replace(/[\s\-\.]/g, ''))) {
-				error = 'Partita IVA non valida';
-				return;
-			}
-
-			// Italian business: SDI or PEC required
+			fieldErrors.businessName = validateBusinessName(businessName);
+			fieldErrors.vatNumber = validateVatNumber(vatNumber);
 			if (billingCountry === 'IT') {
-				if (!sdiCode && !pecEmail) {
-					error = 'Per aziende italiane: inserisci Codice SDI o PEC';
-					return;
-				}
-				if (sdiCode && !/^[A-Za-z0-9]{7}$/.test(sdiCode)) {
-					error = 'Codice SDI non valido (7 caratteri alfanumerici)';
-					return;
-				}
-				if (pecEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pecEmail)) {
-					error = 'PEC non valida';
-					return;
-				}
+				fieldErrors.sdiCode = validateSdiCode(sdiCode);
+				fieldErrors.pecEmail = validatePecEmail(pecEmail);
 			}
+		}
+		fieldErrors = fieldErrors;
+
+		// Check for errors
+		if (hasErrors()) {
+			error = 'Correggi i campi evidenziati in rosso';
+			return;
 		}
 
 		saving = true;
@@ -451,26 +500,36 @@
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div class="form-control">
 							<label class="label" for="firstName">
-								<span class="label-text">Nome</span>
+								<span class="label-text">Nome *</span>
 							</label>
 							<input
 								type="text"
 								id="firstName"
 								bind:value={firstName}
+								on:input={() => validateField('firstName')}
 								class="input input-bordered"
+								class:input-error={fieldErrors.firstName}
 							/>
+							{#if fieldErrors.firstName}
+								<label class="label"><span class="label-text-alt text-error">{fieldErrors.firstName}</span></label>
+							{/if}
 						</div>
 
 						<div class="form-control">
 							<label class="label" for="lastName">
-								<span class="label-text">Cognome</span>
+								<span class="label-text">Cognome *</span>
 							</label>
 							<input
 								type="text"
 								id="lastName"
 								bind:value={lastName}
+								on:input={() => validateField('lastName')}
 								class="input input-bordered"
+								class:input-error={fieldErrors.lastName}
 							/>
+							{#if fieldErrors.lastName}
+								<label class="label"><span class="label-text-alt text-error">{fieldErrors.lastName}</span></label>
+							{/if}
 						</div>
 
 						<div class="form-control">
@@ -481,9 +540,14 @@
 								type="tel"
 								id="phone"
 								bind:value={phone}
+								on:input={() => validateField('phone')}
 								class="input input-bordered"
+								class:input-error={fieldErrors.phone}
 								placeholder="+39 xxx xxx xxxx"
 							/>
+							{#if fieldErrors.phone}
+								<label class="label"><span class="label-text-alt text-error">{fieldErrors.phone}</span></label>
+							{/if}
 						</div>
 
 						<div class="form-control">
@@ -533,9 +597,14 @@
 								type="text"
 								id="postalCode"
 								bind:value={postalCode}
+								on:input={() => validateField('postalCode')}
 								class="input input-bordered"
+								class:input-error={fieldErrors.postalCode}
 								maxlength="5"
 							/>
+							{#if fieldErrors.postalCode}
+								<label class="label"><span class="label-text-alt text-error">{fieldErrors.postalCode}</span></label>
+							{/if}
 						</div>
 					</div>
 				</div>
@@ -556,9 +625,14 @@
 									type="text"
 									id="businessName"
 									bind:value={businessName}
+									on:input={() => validateField('businessName')}
 									class="input input-bordered"
+									class:input-error={fieldErrors.businessName}
 									placeholder="Nome Azienda Srl"
 								/>
+								{#if fieldErrors.businessName}
+									<label class="label"><span class="label-text-alt text-error">{fieldErrors.businessName}</span></label>
+								{/if}
 							</div>
 
 							<div class="form-control">
@@ -569,9 +643,14 @@
 									type="text"
 									id="vatNumber"
 									bind:value={vatNumber}
+									on:input={() => validateField('vatNumber')}
 									class="input input-bordered"
+									class:input-error={fieldErrors.vatNumber}
 									placeholder="IT12345678901"
 								/>
+								{#if fieldErrors.vatNumber}
+									<label class="label"><span class="label-text-alt text-error">{fieldErrors.vatNumber}</span></label>
+								{/if}
 							</div>
 						</div>
 
@@ -615,13 +694,17 @@
 										type="text"
 										id="sdiCode"
 										bind:value={sdiCode}
+										on:input={() => validateField('sdiCode')}
 										class="input input-bordered"
+										class:input-error={fieldErrors.sdiCode}
 										placeholder="0000000"
 										maxlength="7"
 									/>
-									<label class="label">
-										<span class="label-text-alt">Codice Univoco 7 caratteri</span>
-									</label>
+									{#if fieldErrors.sdiCode}
+										<label class="label"><span class="label-text-alt text-error">{fieldErrors.sdiCode}</span></label>
+									{:else}
+										<label class="label"><span class="label-text-alt">Codice Univoco 7 caratteri</span></label>
+									{/if}
 								</div>
 
 								<div class="form-control">
@@ -632,12 +715,16 @@
 										type="email"
 										id="pecEmail"
 										bind:value={pecEmail}
+										on:input={() => validateField('pecEmail')}
 										class="input input-bordered"
+										class:input-error={fieldErrors.pecEmail}
 										placeholder="azienda@pec.it"
 									/>
-									<label class="label">
-										<span class="label-text-alt">Richiesto se non hai SDI</span>
-									</label>
+									{#if fieldErrors.pecEmail}
+										<label class="label"><span class="label-text-alt text-error">{fieldErrors.pecEmail}</span></label>
+									{:else}
+										<label class="label"><span class="label-text-alt">Richiesto se non hai SDI</span></label>
+									{/if}
 								</div>
 							{/if}
 						</div>
