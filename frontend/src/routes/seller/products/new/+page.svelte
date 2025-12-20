@@ -148,6 +148,9 @@
 		}
 
 		try {
+			// Convert date to ISO format for backend (Go expects RFC3339)
+			const expiryDateISO = expiryDate ? new Date(expiryDate + 'T23:59:59Z').toISOString() : undefined;
+
 			const productData: CreateProductRequest = {
 				title: title.trim(),
 				description: description.trim(),
@@ -159,7 +162,7 @@
 				listing_type: listingType,
 				shipping_method: shippingMethod,
 				shipping_cost: canShip ? shippingCost : 0,
-				expiry_date: expiryDate || undefined,
+				expiry_date: expiryDateISO,
 				is_dutch_auction: isDutchAuction,
 				dutch_start_price: isDutchAuction ? dutchStartPrice : undefined,
 				dutch_decrease_amount: isDutchAuction ? dutchDecreaseAmount : undefined,
