@@ -54,6 +54,12 @@ func (h *ProductHandler) List(c *fiber.Ctx) error {
 	if city := c.Query("city"); city != "" {
 		filters.City = &city
 	}
+	if province := c.Query("province"); province != "" {
+		filters.Province = &province
+	}
+	if region := c.Query("region"); region != "" {
+		filters.Region = &region
+	}
 
 	ctx, cancel := context.WithTimeout(c.Context(), 10*time.Second)
 	defer cancel()

@@ -172,6 +172,8 @@ type ProductFilters struct {
 	MinPrice    *float64
 	MaxPrice    *float64
 	City        *string
+	Province    *string
+	Region      *string
 	Status      *ProductStatus
 	Search      *string
 	Page        int

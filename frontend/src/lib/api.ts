@@ -180,7 +180,8 @@ class ApiClient {
 		category_id?: string;
 		min_price?: number;
 		max_price?: number;
-		city?: string;
+		province?: string;
+		region?: string;
 		sort_by?: string;
 		sort_order?: string;
 	}) {

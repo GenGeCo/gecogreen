@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api, type Product, type Category } from '$lib/api';
+	import { ITALIAN_PROVINCES, ITALIAN_REGIONS, getProvincesByRegion } from '$lib/provinces';
 
 	let products: Product[] = [];
 	let categories: Category[] = [];
@@ -12,11 +13,23 @@
 	// Filters
 	let search = '';
 	let categoryId = '';
+	let region = '';
+	let province = '';
 	let minPrice = '';
 	let maxPrice = '';
-	let city = '';
 	let sortBy = 'created_at';
 	let sortOrder = 'desc';
+
+	// Provinces filtered by selected region
+	$: filteredProvinces = region ? getProvincesByRegion(region) : ITALIAN_PROVINCES;
+
+	// When region changes, reset province if it's not in the new region
+	$: if (region && province) {
+		const provinceInRegion = filteredProvinces.some(p => p.code === province);
+		if (!provinceInRegion) {
+			province = '';
+		}
+	}
 
 	async function loadCategories() {
 		try {
@@ -37,7 +50,8 @@
 				category_id: categoryId || undefined,
 				min_price: minPrice ? parseFloat(minPrice) : undefined,
 				max_price: maxPrice ? parseFloat(maxPrice) : undefined,
-				city: city || undefined,
+				province: province || undefined,
+				region: region || undefined,
 				sort_by: sortBy,
 				sort_order: sortOrder
 			});
@@ -57,9 +71,10 @@
 	function clearFilters() {
 		search = '';
 		categoryId = '';
+		region = '';
+		province = '';
 		minPrice = '';
 		maxPrice = '';
-		city = '';
 		sortBy = 'created_at';
 		sortOrder = 'desc';
 		currentPage = 1;
@@ -98,7 +113,7 @@
 	<!-- Filters -->
 	<div class="card bg-base-100 shadow mb-6">
 		<div class="card-body">
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 				<div class="form-control">
 					<input
 						type="text"
@@ -117,6 +132,24 @@
 					</select>
 				</div>
 				<div class="form-control">
+					<select class="select select-bordered" bind:value={region} on:change={applyFilters}>
+						<option value="">Tutte le regioni</option>
+						{#each ITALIAN_REGIONS as reg}
+							<option value={reg}>{reg}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="form-control">
+					<select class="select select-bordered" bind:value={province} on:change={applyFilters}>
+						<option value="">Tutte le province</option>
+						{#each filteredProvinces as prov}
+							<option value={prov.code}>{prov.name} ({prov.code})</option>
+						{/each}
+					</select>
+				</div>
+			</div>
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+				<div class="form-control">
 					<input
 						type="number"
 						placeholder="Prezzo min"
@@ -130,14 +163,6 @@
 						placeholder="Prezzo max"
 						class="input input-bordered"
 						bind:value={maxPrice}
-					/>
-				</div>
-				<div class="form-control">
-					<input
-						type="text"
-						placeholder="Città"
-						class="input input-bordered"
-						bind:value={city}
 					/>
 				</div>
 				<div class="form-control">
@@ -227,7 +252,7 @@
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
 							</svg>
-							<span>{product.city}</span>
+							<span>{product.province || product.city || 'Italia'}</span>
 						</div>
 					</div>
 				</a>

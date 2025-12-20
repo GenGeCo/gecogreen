@@ -19,6 +19,30 @@ var (
 	ErrProductNotFound = errors.New("product not found")
 )
 
+// Province codes grouped by region for filtering
+var regionProvinces = map[string][]string{
+	"Abruzzo":               {"AQ", "CH", "PE", "TE"},
+	"Basilicata":            {"MT", "PZ"},
+	"Calabria":              {"CZ", "CS", "KR", "RC", "VV"},
+	"Campania":              {"AV", "BN", "CE", "NA", "SA"},
+	"Emilia-Romagna":        {"BO", "FE", "FC", "MO", "PR", "PC", "RA", "RE", "RN"},
+	"Friuli-Venezia Giulia": {"GO", "PN", "TS", "UD"},
+	"Lazio":                 {"FR", "LT", "RI", "RM", "VT"},
+	"Liguria":               {"GE", "IM", "SP", "SV"},
+	"Lombardia":             {"BG", "BS", "CO", "CR", "LC", "LO", "MN", "MI", "MB", "PV", "SO", "VA"},
+	"Marche":                {"AN", "AP", "FM", "MC", "PU"},
+	"Molise":                {"CB", "IS"},
+	"Piemonte":              {"AL", "AT", "BI", "CN", "NO", "TO", "VB", "VC"},
+	"Puglia":                {"BA", "BT", "BR", "FG", "LE", "TA"},
+	"Sardegna":              {"CA", "NU", "OR", "SS", "SU"},
+	"Sicilia":               {"AG", "CL", "CT", "EN", "ME", "PA", "RG", "SR", "TP"},
+	"Toscana":               {"AR", "FI", "GR", "LI", "LU", "MS", "PI", "PT", "PO", "SI"},
+	"Trentino-Alto Adige":   {"BZ", "TN"},
+	"Umbria":                {"PG", "TR"},
+	"Valle d'Aosta":         {"AO"},
+	"Veneto":                {"BL", "PD", "RO", "TV", "VE", "VR", "VI"},
+}
+
 // ProductRepository handles product database operations
 type ProductRepository struct {
 	pool *pgxpool.Pool
@@ -229,6 +253,25 @@ func (r *ProductRepository) List(ctx context.Context, filters models.ProductFilt
 		conditions = append(conditions, fmt.Sprintf("p.city ILIKE $%d", argNum))
 		args = append(args, "%"+*filters.City+"%")
 		argNum++
+	}
+
+	if filters.Province != nil && *filters.Province != "" {
+		conditions = append(conditions, fmt.Sprintf("p.province = $%d", argNum))
+		args = append(args, *filters.Province)
+		argNum++
+	}
+
+	// Region filter: check if province is in the list of provinces for that region
+	if filters.Region != nil && *filters.Region != "" {
+		if provinces, ok := regionProvinces[*filters.Region]; ok && len(provinces) > 0 {
+			placeholders := make([]string, len(provinces))
+			for i, prov := range provinces {
+				placeholders[i] = fmt.Sprintf("$%d", argNum)
+				args = append(args, prov)
+				argNum++
+			}
+			conditions = append(conditions, fmt.Sprintf("p.province IN (%s)", strings.Join(placeholders, ", ")))
+		}
 	}
 
 	if filters.Search != nil && *filters.Search != "" {
