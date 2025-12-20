@@ -58,7 +58,7 @@
 						<li><a href="/seller/dashboard">I Miei Annunci</a></li>
 						<li><a href="/orders">I Miei Acquisti</a></li>
 						<li class="divider"></li>
-						<li><button on:click={() => auth.logout()}>Esci</button></li>
+						<li><button on:click={() => { auth.logout(); window.location.href = '/'; }}>Esci</button></li>
 					</ul>
 				</div>
 			{:else}
