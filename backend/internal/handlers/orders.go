@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -212,7 +213,8 @@ func (h *OrderHandler) ListMyOrders(c *fiber.Ctx) error {
 
 	response, err := h.orderRepo.ListByBuyer(ctx, user.ID, filters)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore recupero ordini"})
+		fmt.Printf("ListMyOrders error: %v\n", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore recupero ordini: " + err.Error()})
 	}
 
 	return c.JSON(response)
