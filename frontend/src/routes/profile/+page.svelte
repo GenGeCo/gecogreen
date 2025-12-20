@@ -93,27 +93,85 @@
 	async function saveProfile() {
 		error = '';
 		success = '';
+
+		// Basic validation
+		const nameRegex = /^[\p{L}\s'-]{2,50}$/u; // Letters, spaces, apostrophes, hyphens (2-50 chars)
+
+		if (!firstName.trim() || !nameRegex.test(firstName.trim())) {
+			error = 'Nome non valido (2-50 caratteri, solo lettere)';
+			return;
+		}
+
+		if (!lastName.trim() || !nameRegex.test(lastName.trim())) {
+			error = 'Cognome non valido (2-50 caratteri, solo lettere)';
+			return;
+		}
+
+		// Phone validation (optional, but if provided must be valid)
+		if (phone) {
+			const phoneClean = phone.replace(/[\s\-\.]/g, '');
+			if (!/^\+?[0-9]{6,15}$/.test(phoneClean)) {
+				error = 'Numero di telefono non valido';
+				return;
+			}
+		}
+
+		// Postal code validation (optional, alphanumeric 3-10 chars)
+		if (postalCode && !/^[A-Za-z0-9\s-]{3,10}$/.test(postalCode)) {
+			error = 'CAP non valido';
+			return;
+		}
+
+		// Business validation
+		if (accountType === 'BUSINESS') {
+			if (!businessName.trim() || businessName.trim().length < 2) {
+				error = 'Ragione sociale obbligatoria (min 2 caratteri)';
+				return;
+			}
+
+			if (!vatNumber.trim() || !/^[A-Za-z0-9]{5,20}$/.test(vatNumber.replace(/[\s\-\.]/g, ''))) {
+				error = 'Partita IVA non valida';
+				return;
+			}
+
+			// Italian business: SDI or PEC required
+			if (billingCountry === 'IT') {
+				if (!sdiCode && !pecEmail) {
+					error = 'Per aziende italiane: inserisci Codice SDI o PEC';
+					return;
+				}
+				if (sdiCode && !/^[A-Za-z0-9]{7}$/.test(sdiCode)) {
+					error = 'Codice SDI non valido (7 caratteri alfanumerici)';
+					return;
+				}
+				if (pecEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pecEmail)) {
+					error = 'PEC non valida';
+					return;
+				}
+			}
+		}
+
 		saving = true;
 
 		try {
 			const profileData: Record<string, unknown> = {
-				first_name: firstName,
-				last_name: lastName,
-				phone: phone || undefined,
-				city: city || undefined,
-				province: province || undefined,
-				postal_code: postalCode || undefined,
+				first_name: firstName.trim(),
+				last_name: lastName.trim(),
+				phone: phone?.trim() || undefined,
+				city: city?.trim() || undefined,
+				province: province?.trim().toUpperCase() || undefined,
+				postal_code: postalCode?.trim() || undefined,
 				social_links: socialLinks
 			};
 
 			// Add business fields if business account
 			if (accountType === 'BUSINESS') {
-				profileData.business_name = businessName || undefined;
-				profileData.vat_number = vatNumber || undefined;
+				profileData.business_name = businessName.trim() || undefined;
+				profileData.vat_number = vatNumber.trim().toUpperCase() || undefined;
 				profileData.has_multiple_locations = hasMultipleLocations;
-				profileData.fiscal_code = fiscalCode || undefined;
-				profileData.sdi_code = sdiCode || undefined;
-				profileData.pec_email = pecEmail || undefined;
+				profileData.fiscal_code = fiscalCode?.trim().toUpperCase() || undefined;
+				profileData.sdi_code = sdiCode?.trim().toUpperCase() || undefined;
+				profileData.pec_email = pecEmail?.trim().toLowerCase() || undefined;
 				profileData.billing_country = billingCountry || undefined;
 				profileData.business_photos = businessPhotos;
 			}
