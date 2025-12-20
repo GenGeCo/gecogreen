@@ -25,8 +25,9 @@
 	<!-- Navbar -->
 	<header class="navbar bg-base-100 shadow-sm px-4 lg:px-8">
 		<div class="flex-1 gap-4">
-			<a href="/" class="text-xl font-bold text-geco-gradient">
-				GecoGreen
+			<a href="/" class="flex items-center gap-2">
+				<img src="/logo.png" alt="GecoGreen" class="h-10 w-10" />
+				<span class="text-xl font-bold text-geco-gradient hidden sm:inline">GecoGreen</span>
 			</a>
 			<a href="/products" class="btn btn-ghost btn-sm">Prodotti</a>
 		</div>
