@@ -306,10 +306,18 @@ func (r *UserRepository) CreateLocation(ctx context.Context, loc *models.Locatio
 	loc.IsActive = true
 	loc.CreatedAt = time.Now()
 
+	// Handle empty pickup_hours (JSONB column requires valid JSON or NULL)
+	var pickupHours interface{}
+	if loc.PickupHours == "" {
+		pickupHours = nil
+	} else {
+		pickupHours = loc.PickupHours
+	}
+
 	_, err := r.pool.Exec(ctx, query,
 		loc.ID, loc.UserID, loc.Name, loc.IsPrimary, loc.IsActive,
 		loc.AddressStreet, loc.AddressCity, loc.AddressProvince, loc.AddressPostal,
-		loc.Phone, loc.Email, loc.PickupHours, loc.PickupInstructions, loc.CreatedAt, loc.CreatedAt,
+		loc.Phone, loc.Email, pickupHours, loc.PickupInstructions, loc.CreatedAt, loc.CreatedAt,
 	)
 
 	// If this is primary, unset other primaries
