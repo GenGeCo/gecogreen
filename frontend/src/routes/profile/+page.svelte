@@ -37,6 +37,9 @@
 	let pendingAccountType: 'PRIVATE' | 'BUSINESS' | null = null;
 	let dialogRef: HTMLDialogElement;
 
+	// Track if form has been initialized
+	let formInitialized = false;
+
 	// New location form
 	let showLocationForm = false;
 	let newLocation = {
@@ -55,8 +58,8 @@
 		goto('/login');
 	}
 
-	// Initialize form from user data
-	$: if ($currentUser) {
+	// Initialize form from user data (only once)
+	$: if ($currentUser && !formInitialized) {
 		firstName = $currentUser.first_name || '';
 		lastName = $currentUser.last_name || '';
 		phone = $currentUser.phone || '';
@@ -73,6 +76,7 @@
 		pecEmail = $currentUser.pec_email || '';
 		billingCountry = $currentUser.billing_country || 'IT';
 		businessPhotos = $currentUser.business_photos || [];
+		formInitialized = true;
 	}
 
 	async function loadProfile() {
