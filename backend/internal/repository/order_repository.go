@@ -130,7 +130,7 @@ func (r *OrderRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Or
 			-- Seller
 			s.id, COALESCE(s.business_name, ''), s.first_name, s.last_name, COALESCE(s.avatar_url, ''), COALESCE(s.city, ''),
 			-- Product
-			p.id, p.title, COALESCE(p.main_image_url, ''), p.price
+			p.id, p.title, COALESCE(p.images->>0, ''), p.price
 		FROM orders o
 		JOIN users b ON o.buyer_id = b.id
 		JOIN users s ON o.seller_id = s.id
@@ -242,7 +242,7 @@ func (r *OrderRepository) listOrders(ctx context.Context, buyerID, sellerID *uui
 			-- Seller
 			s.id, COALESCE(s.business_name, ''), s.first_name, s.last_name, COALESCE(s.avatar_url, ''),
 			-- Product
-			p.id, p.title, COALESCE(p.main_image_url, ''), p.price
+			p.id, p.title, COALESCE(p.images->>0, ''), p.price
 		FROM orders o
 		JOIN users b ON o.buyer_id = b.id
 		JOIN users s ON o.seller_id = s.id

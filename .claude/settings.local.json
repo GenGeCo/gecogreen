@@ -76,7 +76,16 @@
       "Bash(npm run build:*)",
       "Bash(cmd.exe /c \"go build -o NUL ./cmd/server\")",
       "Bash(/c/Program Files/Go/bin/go build:*)",
-      "Bash(where go:*)"
+      "Bash(where go:*)",
+      "Bash(ssh root@77.42.35.68 \"cd /opt/gecogreen/app && git fetch origin && git reset --hard origin/main && cd frontend && npm run build 2>&1 | tail -10\")",
+      "Bash(ssh root@77.42.35.68 \"pkill -f ''node build/index.js''; sleep 2; cd /opt/gecogreen/app/frontend && PORT=3000 nohup node build/index.js > /var/log/gecogreen-frontend.log 2>&1 & sleep 2; tail -3 /var/log/gecogreen-frontend.log\")",
+      "Bash(ssh root@77.42.35.68 \"pgrep -f ''node build'' && pkill -f ''node build/index.js''; sleep 2; cd /opt/gecogreen/app/frontend && PORT=3000 nohup node build/index.js > /var/log/gecogreen-frontend.log 2>&1 &\")",
+      "Bash(ssh -o ConnectTimeout=10 root@77.42.35.68 \"echo ''connected''; pgrep -a -f ''node build''\")",
+      "Bash(ssh root@77.42.35.68 \"pgrep -a -f ''node build'' && tail -3 /var/log/gecogreen-frontend.log 2>/dev/null\")",
+      "Bash(ssh root@77.42.35.68 \"tail -30 /var/log/gecogreen.log | grep -i ''order\\|error\\|500''\")",
+      "Bash(ssh root@77.42.35.68 \"psql -U gecogreen -d gecogreen -c \"\"\\d products\"\" 2>&1 | head -50\")",
+      "Bash(ssh root@77.42.35.68 \"PGPASSWORD=$DB_PASSWORD psql -h localhost -U gecogreen -d gecogreen -c \"\"SELECT column_name FROM information_schema.columns WHERE table_name=''products'' ORDER BY ordinal_position;\"\" 2>&1 | head -40\")",
+      "Bash(ssh root@77.42.35.68 \"source /opt/gecogreen/app/backend/.env && psql postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME -c \"\"SELECT column_name FROM information_schema.columns WHERE table_name=''products'' ORDER BY ordinal_position;\"\" 2>&1\")"
     ]
   }
 }
