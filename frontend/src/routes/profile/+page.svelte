@@ -580,17 +580,6 @@
 							{/if}
 						</div>
 
-						<div class="form-control mt-4">
-							<label class="label cursor-pointer justify-start gap-3">
-								<input
-									type="checkbox"
-									bind:checked={hasMultipleLocations}
-									class="checkbox checkbox-primary"
-								/>
-								<span class="label-text">Ho più sedi di ritiro</span>
-							</label>
-						</div>
-
 						<!-- Business Photos -->
 						<h3 class="font-semibold mt-6 mb-2">Foto Aziendali</h3>
 						<p class="text-sm text-base-content/70 mb-4">
