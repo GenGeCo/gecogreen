@@ -305,6 +305,13 @@ func (r *OrderRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status
 	return err
 }
 
+// UpdateStripeSession saves the Stripe checkout session ID
+func (r *OrderRepository) UpdateStripeSession(ctx context.Context, id uuid.UUID, sessionID string) error {
+	query := `UPDATE orders SET stripe_checkout_session_id = $1, updated_at = NOW() WHERE id = $2`
+	_, err := r.pool.Exec(ctx, query, sessionID, id)
+	return err
+}
+
 // MarkAsPaid marks order as paid
 func (r *OrderRepository) MarkAsPaid(ctx context.Context, id uuid.UUID, paymentIntentID string) error {
 	query := `

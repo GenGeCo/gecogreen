@@ -270,6 +270,51 @@ class ApiClient {
 		}
 		return data as { url: string };
 	}
+
+	// Orders
+	async createOrder(data: CreateOrderRequest) {
+		return this.request<CheckoutResponse>('/orders', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		});
+	}
+
+	async getOrder(id: string) {
+		return this.request<Order>(`/orders/${id}`);
+	}
+
+	async getMyOrders(params?: { page?: number; per_page?: number; status?: string }) {
+		const searchParams = new URLSearchParams();
+		if (params) {
+			Object.entries(params).forEach(([key, value]) => {
+				if (value !== undefined) {
+					searchParams.append(key, String(value));
+				}
+			});
+		}
+		const query = searchParams.toString();
+		return this.request<OrdersListResponse>(`/orders${query ? `?${query}` : ''}`);
+	}
+
+	async getSellerOrders(params?: { page?: number; per_page?: number; status?: string }) {
+		const searchParams = new URLSearchParams();
+		if (params) {
+			Object.entries(params).forEach(([key, value]) => {
+				if (value !== undefined) {
+					searchParams.append(key, String(value));
+				}
+			});
+		}
+		const query = searchParams.toString();
+		return this.request<OrdersListResponse>(`/orders/seller${query ? `?${query}` : ''}`);
+	}
+
+	async cancelOrder(id: string, reason?: string) {
+		return this.request<{ message: string }>(`/orders/${id}/cancel`, {
+			method: 'POST',
+			body: JSON.stringify({ reason })
+		});
+	}
 }
 
 export const api = new ApiClient();
@@ -498,4 +543,65 @@ export interface CreateProductRequest {
 	postal_code?: string;
 	latitude?: number;
 	longitude?: number;
+}
+
+// Order types
+export type OrderStatus = 'PENDING' | 'PAID' | 'PROCESSING' | 'SHIPPED' | 'READY_FOR_PICKUP' | 'IN_TRANSIT' | 'DELIVERED' | 'COMPLETED' | 'CANCELLED' | 'REFUNDED' | 'DISPUTED';
+export type DeliveryType = 'PICKUP' | 'SELLER_SHIPS' | 'BUYER_ARRANGES';
+
+export interface Order {
+	id: string;
+	buyer_id: string;
+	seller_id: string;
+	product_id: string;
+	quantity: number;
+	unit_price: number;
+	shipping_cost: number;
+	total_amount: number;
+	status: OrderStatus;
+	delivery_type: DeliveryType;
+	pickup_address?: string;
+	pickup_instructions?: string;
+	shipping_address?: string;
+	shipping_city?: string;
+	shipping_province?: string;
+	shipping_postal_code?: string;
+	tracking_number?: string;
+	created_at: string;
+	updated_at: string;
+	buyer?: UserProfile;
+	seller?: UserProfile;
+	product?: {
+		id: string;
+		title: string;
+		main_image_url: string;
+		price: number;
+	};
+}
+
+export interface CreateOrderRequest {
+	product_id: string;
+	quantity: number;
+	delivery_type: DeliveryType;
+	shipping_address?: string;
+	shipping_city?: string;
+	shipping_province?: string;
+	shipping_postal_code?: string;
+	shipping_country?: string;
+	pickup_location_id?: string;
+	buyer_notes?: string;
+}
+
+export interface CheckoutResponse {
+	order_id: string;
+	stripe_checkout_url: string;
+	total_amount: number;
+	expires_at: string;
+}
+
+export interface OrdersListResponse {
+	orders: Order[];
+	total: number;
+	page: number;
+	total_pages: number;
 }

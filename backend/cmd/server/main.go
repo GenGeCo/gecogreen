@@ -19,6 +19,7 @@ import (
 	"github.com/gecogreen/backend/internal/middleware"
 	"github.com/gecogreen/backend/internal/moderation"
 	"github.com/gecogreen/backend/internal/repository"
+	"github.com/gecogreen/backend/internal/services"
 	"github.com/gecogreen/backend/internal/storage"
 )
 
@@ -57,6 +58,20 @@ func main() {
 	// Category repository
 	categoryRepo := repository.NewCategoryRepository(db.Pool)
 
+	// Stripe Service
+	stripeService := services.NewStripeService(cfg)
+	if cfg.StripeSecretKey != "" {
+		log.Println("✅ Stripe configured")
+	} else {
+		log.Println("⚠️  Stripe not configured (STRIPE_SECRET_KEY not set)")
+	}
+
+	// Frontend URL for redirects
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "https://www.gecogreen.com"
+	}
+
 	// Handlers
 	healthHandler := handlers.NewHealthHandler(db)
 	authHandler := handlers.NewAuthHandler(userRepo, jwtManager)
@@ -64,7 +79,7 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo, imageReviewRepo)
 	leaderboardHandler := handlers.NewLeaderboardHandler(leaderboardRepo, userRepo)
-	orderHandler := handlers.NewOrderHandler(orderRepo, productRepo, userRepo)
+	orderHandler := handlers.NewOrderHandler(orderRepo, productRepo, userRepo, stripeService, frontendURL)
 
 	// Optional: R2 Storage (for image uploads)
 	var uploadHandler *handlers.UploadHandler
@@ -229,6 +244,9 @@ func main() {
 	orders.Post("/:id/dispute", orderHandler.OpenDispute) // Open dispute
 	orders.Get("/:id/dispute", orderHandler.GetDispute)   // Get dispute
 	orders.Post("/:id/review", orderHandler.CreateReview) // Create review
+
+	// Stripe Webhook (no auth - verified by signature)
+	v1.Post("/webhooks/stripe", orderHandler.HandleStripeWebhook)
 
 	// 404
 	app.Use(func(c *fiber.Ctx) error {

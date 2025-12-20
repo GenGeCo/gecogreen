@@ -3,26 +3,33 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/stripe/stripe-go/v76"
 
 	"github.com/gecogreen/backend/internal/models"
 	"github.com/gecogreen/backend/internal/repository"
+	"github.com/gecogreen/backend/internal/services"
 )
 
 type OrderHandler struct {
-	orderRepo   *repository.OrderRepository
-	productRepo *repository.ProductRepository
-	userRepo    *repository.UserRepository
+	orderRepo     *repository.OrderRepository
+	productRepo   *repository.ProductRepository
+	userRepo      *repository.UserRepository
+	stripeService *services.StripeService
+	frontendURL   string
 }
 
-func NewOrderHandler(orderRepo *repository.OrderRepository, productRepo *repository.ProductRepository, userRepo *repository.UserRepository) *OrderHandler {
+func NewOrderHandler(orderRepo *repository.OrderRepository, productRepo *repository.ProductRepository, userRepo *repository.UserRepository, stripeService *services.StripeService, frontendURL string) *OrderHandler {
 	return &OrderHandler{
-		orderRepo:   orderRepo,
-		productRepo: productRepo,
-		userRepo:    userRepo,
+		orderRepo:     orderRepo,
+		productRepo:   productRepo,
+		userRepo:      userRepo,
+		stripeService: stripeService,
+		frontendURL:   frontendURL,
 	}
 }
 
@@ -140,13 +147,27 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore creazione ordine"})
 	}
 
-	// TODO: Create Stripe Checkout Session
-	// For now, return a mock checkout URL
-	checkoutURL := "/checkout/" + order.ID.String()
+	// Create Stripe Checkout Session
+	successURL := fmt.Sprintf("%s/orders/%s/success?session_id={CHECKOUT_SESSION_ID}", h.frontendURL, order.ID.String())
+	cancelURL := fmt.Sprintf("%s/orders/%s/cancel", h.frontendURL, order.ID.String())
+
+	checkoutSession, err := h.stripeService.CreateCheckoutSession(order, product, successURL, cancelURL)
+	if err != nil {
+		// Log error but don't fail - return order ID so they can retry
+		fmt.Printf("Stripe checkout error: %v\n", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":    "Errore creazione pagamento",
+			"order_id": order.ID,
+		})
+	}
+
+	// Save Stripe session ID to order
+	order.StripeCheckoutSessionID = checkoutSession.ID
+	_ = h.orderRepo.UpdateStripeSession(ctx, order.ID, checkoutSession.ID)
 
 	return c.Status(fiber.StatusCreated).JSON(models.CheckoutResponse{
 		OrderID:           order.ID,
-		StripeCheckoutURL: checkoutURL,
+		StripeCheckoutURL: checkoutSession.URL,
 		TotalAmount:       totalAmount,
 		ExpiresAt:         time.Now().Add(30 * time.Minute),
 	})
@@ -592,4 +613,75 @@ func (h *OrderHandler) GetQRCode(c *fiber.Ctx) error {
 		"pickup_instructions": order.PickupInstructions,
 		"pickup_deadline": order.PickupDeadline,
 	})
+}
+
+// HandleStripeWebhook processes Stripe webhook events
+// POST /api/v1/webhooks/stripe
+func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
+	payload, err := io.ReadAll(c.Request().BodyStream())
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot read body"})
+	}
+
+	signature := c.Get("Stripe-Signature")
+	event, err := h.stripeService.VerifyWebhookSignature(payload, signature)
+	if err != nil {
+		fmt.Printf("Webhook signature verification failed: %v\n", err)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid signature"})
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	switch event.Type {
+	case "checkout.session.completed":
+		var session stripe.CheckoutSession
+		if err := event.Data.Raw.Unmarshal(&session); err != nil {
+			fmt.Printf("Error parsing checkout session: %v\n", err)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid event data"})
+		}
+
+		orderID, err := uuid.Parse(session.Metadata["order_id"])
+		if err != nil {
+			fmt.Printf("Invalid order_id in metadata: %v\n", err)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid order_id"})
+		}
+
+		// Update order status to PAID
+		err = h.orderRepo.MarkAsPaid(ctx, orderID, session.PaymentIntent.ID)
+		if err != nil {
+			fmt.Printf("Error marking order as paid: %v\n", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update order"})
+		}
+
+		fmt.Printf("✅ Order %s marked as PAID (PaymentIntent: %s)\n", orderID, session.PaymentIntent.ID)
+
+	case "checkout.session.expired":
+		var session stripe.CheckoutSession
+		if err := event.Data.Raw.Unmarshal(&session); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid event data"})
+		}
+
+		orderID, err := uuid.Parse(session.Metadata["order_id"])
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid order_id"})
+		}
+
+		// Cancel the order
+		err = h.orderRepo.UpdateStatus(ctx, orderID, models.OrderCancelled)
+		if err != nil {
+			fmt.Printf("Error cancelling expired order: %v\n", err)
+		}
+
+		fmt.Printf("⏰ Order %s cancelled (checkout expired)\n", orderID)
+
+	case "payment_intent.payment_failed":
+		fmt.Printf("❌ Payment failed: %s\n", event.ID)
+		// Could notify user here
+
+	default:
+		fmt.Printf("Unhandled event type: %s\n", event.Type)
+	}
+
+	return c.JSON(fiber.Map{"received": true})
 }
