@@ -1,7 +1,8 @@
 // API Client for GecoGreen Backend
 import { PUBLIC_API_URL } from '$env/static/public';
 
-const API_BASE = `${PUBLIC_API_URL || 'http://localhost:8080'}/api/v1`;
+// In production, use relative path (empty string). In dev, use localhost.
+const API_BASE = PUBLIC_API_URL !== undefined ? `${PUBLIC_API_URL}/api/v1` : 'http://localhost:8080/api/v1';
 
 interface ApiError {
 	error: string;
