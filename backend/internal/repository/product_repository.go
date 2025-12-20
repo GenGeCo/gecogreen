@@ -34,14 +34,15 @@ func (r *ProductRepository) Create(ctx context.Context, product *models.Product)
 	query := `
 		INSERT INTO products (
 			id, seller_id, category_id, title, description, price, original_price,
-			listing_type, shipping_method, shipping_cost, pickup_location_ids, quantity, quantity_available,
+			listing_type, shipping_method, shipping_cost, pickup_location_ids,
+			quantity, quantity_available, quantity_unit, quantity_unit_custom,
 			expiry_date, is_dutch_auction, dutch_start_price, dutch_decrease_amount,
 			dutch_decrease_hours, dutch_min_price, dutch_started_at,
 			city, province, postal_code, latitude, longitude,
 			images, status, created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-			$17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+			$17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
 		)
 	`
 
@@ -77,6 +78,11 @@ func (r *ProductRepository) Create(ctx context.Context, product *models.Product)
 		pickupLocationIDsJSON = []byte("[]")
 	}
 
+	// Default quantity_unit if not set
+	if product.QuantityUnit == "" {
+		product.QuantityUnit = models.QuantityUnitPiece
+	}
+
 	_, err := r.pool.Exec(ctx, query,
 		product.ID,
 		product.SellerID,
@@ -91,6 +97,8 @@ func (r *ProductRepository) Create(ctx context.Context, product *models.Product)
 		pickupLocationIDsJSON,
 		product.Quantity,
 		product.QuantityAvail,
+		product.QuantityUnit,
+		product.QuantityUnitCustom,
 		product.ExpiryDate,
 		product.IsDutchAuction,
 		product.DutchStartPrice,

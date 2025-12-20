@@ -116,6 +116,15 @@ func (h *ProductHandler) Create(c *fiber.Ctx) error {
 	if req.Quantity < 1 {
 		req.Quantity = 1
 	}
+	if req.QuantityUnit == "" {
+		req.QuantityUnit = models.QuantityUnitPiece
+	}
+	if req.ListingType == "" {
+		req.ListingType = models.ListingSale
+	}
+	if req.ShippingMethod == "" {
+		req.ShippingMethod = models.ShippingPickup
+	}
 
 	product := &models.Product{
 		SellerID:            user.ID,
@@ -125,6 +134,8 @@ func (h *ProductHandler) Create(c *fiber.Ctx) error {
 		Price:               req.Price,
 		OriginalPrice:       req.OriginalPrice,
 		Quantity:            req.Quantity,
+		QuantityUnit:        req.QuantityUnit,
+		QuantityUnitCustom:  req.QuantityUnitCustom,
 		ListingType:         req.ListingType,
 		ShippingMethod:      req.ShippingMethod,
 		ShippingCost:        req.ShippingCost,
