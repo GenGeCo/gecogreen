@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { api, type CreateProductRequest, type Location } from '$lib/api';
+	import { api, type CreateProductRequest, type Location, type Category } from '$lib/api';
 	import { isAuthenticated, currentUser } from '$lib/stores/auth';
+	import { ITALIAN_PROVINCES } from '$lib/provinces';
 
 	let loading = false;
 	let error = '';
@@ -13,6 +14,10 @@
 	// Image previews
 	let productImagePreviews: string[] = [];
 	let expiryPhotoPreviews: string[] = [];
+
+	// Categories
+	let categories: Category[] = [];
+	let categoryId: string = '';
 
 	// Form data
 	let title = '';
@@ -89,15 +94,20 @@
 	$: productImageFiles, updateProductPreviews();
 	$: expiryPhotoFile, updateExpiryPreview();
 
-	// Load user's pickup locations
+	// Load categories and user's pickup locations
 	onMount(async () => {
 		try {
-			const profile = await api.getProfile();
+			// Load categories and profile in parallel
+			const [categoriesData, profile] = await Promise.all([
+				api.getCategories(),
+				api.getProfile()
+			]);
+			categories = categoriesData || [];
 			userLocations = profile.locations || [];
 			// Auto-select all locations by default
 			selectedLocationIds = userLocations.map(l => l.id);
 		} catch (e) {
-			console.error('Error loading locations:', e);
+			console.error('Error loading data:', e);
 		}
 	});
 
@@ -118,6 +128,10 @@
 		}
 		if (!description.trim()) {
 			error = 'La descrizione è obbligatoria';
+			return;
+		}
+		if (!categoryId) {
+			error = 'Seleziona una categoria';
 			return;
 		}
 		if (listingType === 'SALE' && price <= 0) {
@@ -154,6 +168,7 @@
 			const productData: CreateProductRequest = {
 				title: title.trim(),
 				description: description.trim(),
+				category_id: categoryId || undefined,
 				price: listingType === 'GIFT' ? 0 : (isDutchAuction ? (dutchStartPrice || price) : price),
 				original_price: originalPrice,
 				quantity,
@@ -259,6 +274,18 @@
 						placeholder="Descrivi il prodotto, le condizioni, perché lo vendi..."
 						required
 					></textarea>
+				</div>
+
+				<div class="form-control">
+					<label class="label" for="category">
+						<span class="label-text">Categoria *</span>
+					</label>
+					<select id="category" bind:value={categoryId} class="select select-bordered" required>
+						<option value="">Seleziona una categoria</option>
+						{#each categories as cat}
+							<option value={cat.id}>{cat.name}</option>
+						{/each}
+					</select>
 				</div>
 
 				<div class="form-control">
@@ -677,14 +704,12 @@
 						<label class="label" for="province">
 							<span class="label-text">Provincia</span>
 						</label>
-						<input
-							type="text"
-							id="province"
-							bind:value={province}
-							class="input input-bordered"
-							placeholder="es. MI"
-							maxlength="2"
-						/>
+						<select id="province" bind:value={province} class="select select-bordered">
+							<option value="">Seleziona provincia</option>
+							{#each ITALIAN_PROVINCES as prov}
+								<option value={prov.code}>{prov.name} ({prov.code})</option>
+							{/each}
+						</select>
 					</div>
 				</div>
 			</div>

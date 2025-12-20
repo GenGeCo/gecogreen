@@ -54,10 +54,14 @@ func main() {
 	// JWT
 	jwtManager := auth.NewJWTManager(cfg.JWTSecret)
 
+	// Category repository
+	categoryRepo := repository.NewCategoryRepository(db)
+
 	// Handlers
 	healthHandler := handlers.NewHealthHandler(db)
 	authHandler := handlers.NewAuthHandler(userRepo, jwtManager)
 	productHandler := handlers.NewProductHandler(productRepo)
+	categoryHandler := handlers.NewCategoryHandler(categoryRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo, imageReviewRepo)
 	leaderboardHandler := handlers.NewLeaderboardHandler(leaderboardRepo, userRepo)
 	orderHandler := handlers.NewOrderHandler(orderRepo, productRepo, userRepo)
@@ -159,6 +163,11 @@ func main() {
 		profile.Post("/avatar", profileHandler.UploadAvatar)
 		profile.Post("/business-photos", profileHandler.UploadBusinessPhoto)
 	}
+
+	// Categories (public - no auth required)
+	categories := v1.Group("/categories")
+	categories.Get("/", categoryHandler.List)
+	categories.Get("/:id", categoryHandler.GetByID)
 
 	// Products
 	products := v1.Group("/products")

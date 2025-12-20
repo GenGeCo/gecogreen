@@ -167,6 +167,11 @@ class ApiClient {
 		return data as { photo_url: string };
 	}
 
+	// Categories
+	async getCategories() {
+		return this.request<Category[]>('/categories');
+	}
+
 	// Products
 	async getProducts(params?: {
 		page?: number;
@@ -415,6 +420,15 @@ export interface UserProfile {
 }
 
 export type QuantityUnit = 'PIECE' | 'KG' | 'G' | 'L' | 'ML' | 'CUSTOM';
+
+export interface Category {
+	id: string;
+	name: string;
+	slug: string;
+	icon?: string;
+	parent_id?: string;
+	sort_order: number;
+}
 
 export interface Product {
 	id: string;
