@@ -54,6 +54,9 @@
 
 	/* Testo gradiente */
 	.text-geco-gradient {
-		@apply bg-clip-text text-transparent bg-geco-gradient;
+		background: linear-gradient(135deg, #00C853 0%, #4CAF50 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
 	}
 }

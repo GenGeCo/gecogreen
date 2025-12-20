@@ -49,7 +49,7 @@
 	<div class="hero-content text-center">
 		<div class="max-w-2xl">
 			<!-- Logo -->
-			<img src="/logo.png" alt="GecoGreen" class="w-32 h-32 mx-auto mb-4" />
+			<img src="/logo.png" alt="GecoGreen" class="w-48 h-48 mx-auto mb-4" />
 
 			<h1 class="text-5xl font-bold">
 				<span class="text-geco-gradient">GecoGreen</span>
