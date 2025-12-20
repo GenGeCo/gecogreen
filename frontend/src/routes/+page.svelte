@@ -7,7 +7,8 @@
 	let dbStatus = 'Checking...';
 	let recentProducts: Product[] = [];
 
-	const apiUrl = PUBLIC_API_URL || 'http://localhost:8080';
+	// Use relative path in production (empty string), localhost only for dev
+	const apiUrl = PUBLIC_API_URL !== undefined ? PUBLIC_API_URL : 'http://localhost:8080';
 
 	onMount(async () => {
 		// Check health
