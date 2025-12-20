@@ -68,7 +68,7 @@ func main() {
 	var r2Storage *storage.R2Storage
 
 	if cfg.R2AccountID != "" && cfg.R2AccessKeyID != "" {
-		r2Storage, err = storage.NewR2Storage(cfg.R2AccountID, cfg.R2AccessKeyID, cfg.R2SecretKey, cfg.R2BucketName)
+		r2Storage, err = storage.NewR2Storage(cfg.R2AccountID, cfg.R2AccessKeyID, cfg.R2SecretKey, cfg.R2BucketName, cfg.R2PublicURL)
 		if err != nil {
 			log.Printf("⚠️  R2 Storage not configured: %v", err)
 		} else {

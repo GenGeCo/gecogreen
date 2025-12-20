@@ -30,6 +30,7 @@ type Config struct {
 	R2AccessKeyID string
 	R2SecretKey   string
 	R2BucketName  string
+	R2PublicURL   string
 
 	// Resend (Email)
 	ResendAPIKey string
@@ -63,6 +64,7 @@ func Load() *Config {
 		R2AccessKeyID: getEnv("R2_ACCESS_KEY_ID", ""),
 		R2SecretKey:   getEnv("R2_SECRET_KEY", ""),
 		R2BucketName:  getEnv("R2_BUCKET_NAME", "gecogreen-uploads"),
+		R2PublicURL:   getEnv("R2_PUBLIC_URL", ""),
 
 		// Resend
 		ResendAPIKey: getEnv("RESEND_API_KEY", ""),

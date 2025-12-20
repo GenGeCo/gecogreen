@@ -23,7 +23,7 @@ type R2Storage struct {
 }
 
 // NewR2Storage creates a new R2 storage client
-func NewR2Storage(accountID, accessKeyID, secretKey, bucketName string) (*R2Storage, error) {
+func NewR2Storage(accountID, accessKeyID, secretKey, bucketName, publicURLOverride string) (*R2Storage, error) {
 	// R2 endpoint
 	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", accountID)
 
@@ -45,8 +45,11 @@ func NewR2Storage(accountID, accessKeyID, secretKey, bucketName string) (*R2Stor
 
 	client := s3.NewFromConfig(cfg)
 
-	// Public URL for accessing files
-	publicURL := fmt.Sprintf("https://pub-%s.r2.dev", accountID)
+	// Public URL for accessing files - use override if provided
+	publicURL := publicURLOverride
+	if publicURL == "" {
+		publicURL = fmt.Sprintf("https://pub-%s.r2.dev", accountID)
+	}
 
 	return &R2Storage{
 		client:     client,
