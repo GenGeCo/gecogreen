@@ -48,8 +48,8 @@
 <div class="hero min-h-[80vh] bg-base-200">
 	<div class="hero-content text-center">
 		<div class="max-w-2xl">
-			<!-- Logo placeholder -->
-			<div class="text-8xl mb-4">🦎</div>
+			<!-- Logo -->
+			<img src="/logo.png" alt="GecoGreen" class="w-32 h-32 mx-auto mb-4" />
 
 			<h1 class="text-5xl font-bold">
 				<span class="text-geco-gradient">GecoGreen</span>
