@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -101,7 +102,9 @@ func (h *ProductHandler) Create(c *fiber.Ctx) error {
 
 	var req models.CreateProductRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Dati non validi"})
+		// Log detailed error for debugging
+		fmt.Printf("BodyParser error: %v\nBody: %s\n", err, string(c.Body()))
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Dati non validi: " + err.Error()})
 	}
 
 	if req.Title == "" {
