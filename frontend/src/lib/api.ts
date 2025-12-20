@@ -118,6 +118,13 @@ class ApiClient {
 		});
 	}
 
+	async updateLocation(id: string, data: CreateLocationRequest) {
+		return this.request<Location>(`/profile/locations/${id}`, {
+			method: 'PUT',
+			body: JSON.stringify(data)
+		});
+	}
+
 	async deleteLocation(id: string) {
 		return this.request<{ success: boolean }>(`/profile/locations/${id}`, {
 			method: 'DELETE'

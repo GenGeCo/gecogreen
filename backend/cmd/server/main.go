@@ -153,6 +153,7 @@ func main() {
 	profile.Put("/", profileHandler.UpdateProfile)
 	profile.Get("/locations", profileHandler.GetLocations)
 	profile.Post("/locations", profileHandler.CreateLocation)
+	profile.Put("/locations/:id", profileHandler.UpdateLocation)
 	profile.Delete("/locations/:id", profileHandler.DeleteLocation)
 	if r2Storage != nil {
 		profile.Post("/avatar", profileHandler.UploadAvatar)

@@ -397,6 +397,30 @@ func (r *UserRepository) DeleteLocation(ctx context.Context, id uuid.UUID) error
 	return err
 }
 
+func (r *UserRepository) UpdateLocation(ctx context.Context, loc *models.Location) error {
+	query := `
+		UPDATE seller_locations SET
+			name = $2, is_primary = $3, address_street = $4, address_city = $5,
+			address_province = $6, address_postal_code = $7, phone = $8, email = $9,
+			pickup_hours = $10, pickup_instructions = $11, updated_at = NOW()
+		WHERE id = $1`
+
+	// Handle empty pickup_hours (JSONB column requires valid JSON or NULL)
+	var pickupHours interface{}
+	if loc.PickupHours == "" {
+		pickupHours = nil
+	} else {
+		pickupHours = loc.PickupHours
+	}
+
+	_, err := r.pool.Exec(ctx, query,
+		loc.ID, loc.Name, loc.IsPrimary, loc.AddressStreet, loc.AddressCity,
+		loc.AddressProvince, loc.AddressPostal, loc.Phone, loc.Email,
+		pickupHours, loc.PickupInstructions,
+	)
+	return err
+}
+
 // Admin methods
 
 func (r *UserRepository) IsAdmin(ctx context.Context, id uuid.UUID) (bool, error) {

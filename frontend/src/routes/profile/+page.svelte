@@ -8,7 +8,9 @@
 	let saving = false;
 	let error = '';
 	let success = '';
+	let locationMessage = ''; // Local message for locations section
 	let locations: Location[] = [];
+	let editingLocationId: string | null = null;
 
 	// Form data
 	let firstName = '';
@@ -99,6 +101,45 @@
 		return '';
 	}
 
+	function validateInstagram(value: string): string {
+		if (!value) return '';
+		// Accept @username or plain username (letters, numbers, underscores, dots)
+		const clean = value.replace(/^@/, '');
+		if (!/^[a-zA-Z0-9._]{1,30}$/.test(clean)) return 'Username non valido (es. @username)';
+		return '';
+	}
+
+	function validateFacebook(value: string): string {
+		if (!value) return '';
+		// Accept URL or page name
+		if (value.includes('facebook.com')) {
+			if (!/^https?:\/\/(www\.)?facebook\.com\/[a-zA-Z0-9.]+\/?$/.test(value)) {
+				return 'URL non valido (es. facebook.com/pagina)';
+			}
+		} else if (!/^[a-zA-Z0-9.]{3,50}$/.test(value)) {
+			return 'Nome pagina non valido';
+		}
+		return '';
+	}
+
+	function validateWebsite(value: string): string {
+		if (!value) return '';
+		if (!/^https?:\/\/.+\..+/.test(value)) return 'URL non valido (es. https://sito.it)';
+		return '';
+	}
+
+	function validateLinkedin(value: string): string {
+		if (!value) return '';
+		if (value.includes('linkedin.com')) {
+			if (!/^https?:\/\/(www\.)?linkedin\.com\/(in|company)\/[a-zA-Z0-9-]+\/?$/.test(value)) {
+				return 'URL non valido (es. linkedin.com/in/nome)';
+			}
+		} else if (!/^[a-zA-Z0-9-]{3,50}$/.test(value)) {
+			return 'Username non valido';
+		}
+		return '';
+	}
+
 	// Real-time validation on input
 	function validateField(field: string) {
 		switch(field) {
@@ -116,6 +157,10 @@
 				fieldErrors.pecEmail = validatePecEmail(pecEmail);
 				fieldErrors.sdiCode = validateSdiCode(sdiCode);
 				break;
+			case 'instagram': fieldErrors.instagram = validateInstagram(socialLinks.instagram || ''); break;
+			case 'facebook': fieldErrors.facebook = validateFacebook(socialLinks.facebook || ''); break;
+			case 'website': fieldErrors.website = validateWebsite(socialLinks.website || ''); break;
+			case 'linkedin': fieldErrors.linkedin = validateLinkedin(socialLinks.linkedin || ''); break;
 		}
 		fieldErrors = fieldErrors; // Trigger reactivity
 	}
@@ -184,6 +229,11 @@
 		fieldErrors.lastName = validateLastName(lastName);
 		fieldErrors.phone = validatePhone(phone);
 		fieldErrors.postalCode = validatePostalCode(postalCode);
+		// Validate social media
+		fieldErrors.instagram = validateInstagram(socialLinks.instagram || '');
+		fieldErrors.facebook = validateFacebook(socialLinks.facebook || '');
+		fieldErrors.website = validateWebsite(socialLinks.website || '');
+		fieldErrors.linkedin = validateLinkedin(socialLinks.linkedin || '');
 		if (accountType === 'BUSINESS') {
 			fieldErrors.businessName = validateBusinessName(businessName);
 			fieldErrors.vatNumber = validateVatNumber(vatNumber);
@@ -337,11 +387,11 @@
 
 	async function addLocation() {
 		if (!newLocation.name || !newLocation.address_street || !newLocation.address_city || !newLocation.address_postal_code) {
-			error = 'Compila tutti i campi obbligatori';
+			locationMessage = 'error:Compila tutti i campi obbligatori';
 			return;
 		}
 
-		error = '';
+		locationMessage = '';
 		saving = true;
 		try {
 			const loc = await api.createLocation({
@@ -366,9 +416,10 @@
 				email: '',
 				is_primary: false
 			};
-			success = 'Sede aggiunta!';
+			locationMessage = 'success:Sede aggiunta!';
+			setTimeout(() => locationMessage = '', 3000);
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Errore creazione sede';
+			locationMessage = 'error:' + (e instanceof Error ? e.message : 'Errore creazione sede');
 		}
 		saving = false;
 	}
@@ -379,10 +430,71 @@
 		try {
 			await api.deleteLocation(id);
 			locations = locations.filter(l => l.id !== id);
-			success = 'Sede eliminata';
+			locationMessage = 'success:Sede eliminata';
+			setTimeout(() => locationMessage = '', 3000);
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Errore eliminazione';
+			locationMessage = 'error:' + (e instanceof Error ? e.message : 'Errore eliminazione');
 		}
+	}
+
+	function startEditLocation(loc: Location) {
+		editingLocationId = loc.id;
+		newLocation = {
+			name: loc.name,
+			address_street: loc.address_street,
+			address_city: loc.address_city,
+			address_province: loc.address_province || '',
+			address_postal_code: loc.address_postal_code,
+			phone: loc.phone || '',
+			email: loc.email || '',
+			is_primary: loc.is_primary
+		};
+		showLocationForm = true;
+	}
+
+	function cancelEditLocation() {
+		editingLocationId = null;
+		showLocationForm = false;
+		newLocation = {
+			name: '',
+			address_street: '',
+			address_city: '',
+			address_province: '',
+			address_postal_code: '',
+			phone: '',
+			email: '',
+			is_primary: false
+		};
+	}
+
+	async function updateLocation() {
+		if (!editingLocationId) return;
+		if (!newLocation.name || !newLocation.address_street || !newLocation.address_city || !newLocation.address_postal_code) {
+			locationMessage = 'error:Compila tutti i campi obbligatori';
+			return;
+		}
+
+		locationMessage = '';
+		saving = true;
+		try {
+			const updated = await api.updateLocation(editingLocationId, {
+				name: newLocation.name,
+				address_street: newLocation.address_street,
+				address_city: newLocation.address_city,
+				address_province: newLocation.address_province || undefined,
+				address_postal_code: newLocation.address_postal_code,
+				phone: newLocation.phone || undefined,
+				email: newLocation.email || undefined,
+				is_primary: newLocation.is_primary
+			});
+			locations = locations.map(l => l.id === editingLocationId ? updated : l);
+			cancelEditLocation();
+			locationMessage = 'success:Sede aggiornata!';
+			setTimeout(() => locationMessage = '', 3000);
+		} catch (e) {
+			locationMessage = 'error:' + (e instanceof Error ? e.message : 'Errore aggiornamento sede');
+		}
+		saving = false;
 	}
 
 	onMount(loadProfile);
@@ -481,14 +593,6 @@
 						</div>
 					</div>
 
-					{#if accountType === 'BUSINESS'}
-						<div class="alert alert-info mt-4">
-							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-							</svg>
-							<span>Hai <strong>{locations.length}</strong> {locations.length === 1 ? 'sede' : 'sedi'} di ritiro configurate. {locations.length === 0 ? 'Aggiungine una qui sotto!' : ''}</span>
-						</div>
-					{/if}
 				</div>
 			</div>
 
@@ -784,9 +888,14 @@
 								type="text"
 								id="instagram"
 								bind:value={socialLinks.instagram}
+								on:input={() => validateField('instagram')}
 								class="input input-bordered"
+								class:input-error={fieldErrors.instagram}
 								placeholder="@username"
 							/>
+							{#if fieldErrors.instagram}
+								<label class="label"><span class="label-text-alt text-error">{fieldErrors.instagram}</span></label>
+							{/if}
 						</div>
 
 						<div class="form-control">
@@ -797,9 +906,14 @@
 								type="text"
 								id="facebook"
 								bind:value={socialLinks.facebook}
+								on:input={() => validateField('facebook')}
 								class="input input-bordered"
-								placeholder="facebook.com/..."
+								class:input-error={fieldErrors.facebook}
+								placeholder="pagina o facebook.com/pagina"
 							/>
+							{#if fieldErrors.facebook}
+								<label class="label"><span class="label-text-alt text-error">{fieldErrors.facebook}</span></label>
+							{/if}
 						</div>
 
 						<div class="form-control">
@@ -807,12 +921,17 @@
 								<span class="label-text">Sito Web</span>
 							</label>
 							<input
-								type="url"
+								type="text"
 								id="website"
 								bind:value={socialLinks.website}
+								on:input={() => validateField('website')}
 								class="input input-bordered"
-								placeholder="https://..."
+								class:input-error={fieldErrors.website}
+								placeholder="https://www.miosito.it"
 							/>
+							{#if fieldErrors.website}
+								<label class="label"><span class="label-text-alt text-error">{fieldErrors.website}</span></label>
+							{/if}
 						</div>
 
 						<div class="form-control">
@@ -823,9 +942,14 @@
 								type="text"
 								id="linkedin"
 								bind:value={socialLinks.linkedin}
+								on:input={() => validateField('linkedin')}
 								class="input input-bordered"
-								placeholder="linkedin.com/in/..."
+								class:input-error={fieldErrors.linkedin}
+								placeholder="linkedin.com/in/nome"
 							/>
+							{#if fieldErrors.linkedin}
+								<label class="label"><span class="label-text-alt text-error">{fieldErrors.linkedin}</span></label>
+							{/if}
 						</div>
 					</div>
 				</div>
@@ -849,17 +973,30 @@
 					<div class="card-body">
 						<div class="flex justify-between items-center">
 							<h2 class="card-title text-lg">Sedi di Ritiro</h2>
-							<button
-								class="btn btn-primary btn-sm"
-								on:click={() => showLocationForm = !showLocationForm}
-							>
-								{showLocationForm ? 'Annulla' : '+ Aggiungi Sede'}
-							</button>
+							{#if !showLocationForm}
+								<button
+									class="btn btn-primary btn-sm"
+									on:click={() => { editingLocationId = null; showLocationForm = true; }}
+								>
+									+ Aggiungi Sede
+								</button>
+							{/if}
 						</div>
+
+						<!-- Local message for locations -->
+						{#if locationMessage}
+							<div class="alert {locationMessage.startsWith('success:') ? 'alert-success' : 'alert-error'} mt-2">
+								<span>{locationMessage.replace(/^(success:|error:)/, '')}</span>
+								<button class="btn btn-sm btn-ghost" on:click={() => locationMessage = ''}>×</button>
+							</div>
+						{/if}
 
 						{#if showLocationForm}
 							<div class="bg-base-200 p-4 rounded-lg mt-4 space-y-4">
-								<h3 class="font-semibold">Nuova Sede</h3>
+								<div class="flex justify-between items-center">
+									<h3 class="font-semibold">{editingLocationId ? 'Modifica Sede' : 'Nuova Sede'}</h3>
+									<button class="btn btn-ghost btn-sm" on:click={cancelEditLocation}>Annulla</button>
+								</div>
 
 								<div class="form-control">
 									<label class="label"><span class="label-text">Nome Sede *</span></label>
@@ -940,9 +1077,13 @@
 									</label>
 								</div>
 
-								<button class="btn btn-primary" on:click={addLocation} disabled={saving}>
+								<button
+									class="btn btn-primary"
+									on:click={editingLocationId ? updateLocation : addLocation}
+									disabled={saving}
+								>
 									{#if saving}<span class="loading loading-spinner"></span>{/if}
-									Aggiungi Sede
+									{editingLocationId ? 'Salva Modifiche' : 'Aggiungi Sede'}
 								</button>
 							</div>
 						{/if}
@@ -966,12 +1107,20 @@
 												<p class="text-sm">Tel: {location.phone}</p>
 											{/if}
 										</div>
-										<button
-											class="btn btn-ghost btn-sm text-error"
-											on:click={() => deleteLocation(location.id, location.name)}
-										>
-											Elimina
-										</button>
+										<div class="flex gap-2">
+											<button
+												class="btn btn-ghost btn-sm"
+												on:click={() => startEditLocation(location)}
+											>
+												Modifica
+											</button>
+											<button
+												class="btn btn-ghost btn-sm text-error"
+												on:click={() => deleteLocation(location.id, location.name)}
+											>
+												Elimina
+											</button>
+										</div>
 									</div>
 								{/each}
 							</div>

@@ -216,6 +216,56 @@ func (h *ProfileHandler) CreateLocation(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(loc)
 }
 
+// UpdateLocation updates an existing pickup location
+func (h *ProfileHandler) UpdateLocation(c *fiber.Ctx) error {
+	user := c.Locals("user").(*models.User)
+
+	locID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "ID non valido"})
+	}
+
+	var req models.CreateLocationRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Dati non validi"})
+	}
+
+	// Validate required fields
+	if req.Name == "" || req.AddressStreet == "" || req.AddressCity == "" || req.AddressPostal == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Nome, indirizzo, città e CAP obbligatori"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 5*time.Second)
+	defer cancel()
+
+	// Verify ownership
+	existingLoc, err := h.userRepo.GetLocationByID(ctx, locID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Sede non trovata"})
+	}
+	if existingLoc.UserID != user.ID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Non autorizzato"})
+	}
+
+	// Update location
+	existingLoc.Name = req.Name
+	existingLoc.IsPrimary = req.IsPrimary
+	existingLoc.AddressStreet = req.AddressStreet
+	existingLoc.AddressCity = req.AddressCity
+	existingLoc.AddressProvince = req.AddressProvince
+	existingLoc.AddressPostal = req.AddressPostal
+	existingLoc.Phone = req.Phone
+	existingLoc.Email = req.Email
+	existingLoc.PickupHours = req.PickupHours
+	existingLoc.PickupInstructions = req.PickupInstructions
+
+	if err := h.userRepo.UpdateLocation(ctx, existingLoc); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore aggiornamento sede"})
+	}
+
+	return c.JSON(existingLoc)
+}
+
 // DeleteLocation removes a pickup location
 func (h *ProfileHandler) DeleteLocation(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
