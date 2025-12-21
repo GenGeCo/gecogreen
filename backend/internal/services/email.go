@@ -3,6 +3,7 @@ package services
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/smtp"
 	"strings"
 
@@ -200,7 +201,7 @@ func (s *EmailService) getNextStepsForSeller(order *models.Order) string {
 	return "Prepara il pacco e spedisci il prodotto all'indirizzo indicato. Ricordati di inserire il numero di tracking!"
 }
 
-// sendEmail sends an email via SMTP
+// sendEmail sends an email via SMTP with STARTTLS support
 func (s *EmailService) sendEmail(to, subject, htmlBody string) error {
 	if s.config.SMTPUser == "" || s.config.SMTPPassword == "" {
 		fmt.Printf("SMTP not configured, skipping email to %s\n", to)
@@ -224,39 +225,58 @@ func (s *EmailService) sendEmail(to, subject, htmlBody string) error {
 	message.WriteString("\r\n")
 	message.WriteString(htmlBody)
 
-	// Connect to SMTP server with TLS
 	addr := fmt.Sprintf("%s:%s", s.config.SMTPHost, s.config.SMTPPort)
-
-	// Create TLS config
 	tlsConfig := &tls.Config{
 		ServerName: s.config.SMTPHost,
 	}
 
-	// Connect with TLS
-	conn, err := tls.Dial("tcp", addr, tlsConfig)
-	if err != nil {
-		return fmt.Errorf("failed to connect to SMTP server: %w", err)
-	}
-	defer conn.Close()
+	var client *smtp.Client
+	var err error
 
-	// Create SMTP client
-	client, err := smtp.NewClient(conn, s.config.SMTPHost)
-	if err != nil {
-		return fmt.Errorf("failed to create SMTP client: %w", err)
+	// Port 465 uses implicit TLS, port 587 uses STARTTLS
+	if s.config.SMTPPort == "465" {
+		// Implicit TLS (SMTPS)
+		conn, err := tls.Dial("tcp", addr, tlsConfig)
+		if err != nil {
+			return fmt.Errorf("failed to connect to SMTP server (TLS): %w", err)
+		}
+		defer conn.Close()
+
+		client, err = smtp.NewClient(conn, s.config.SMTPHost)
+		if err != nil {
+			return fmt.Errorf("failed to create SMTP client: %w", err)
+		}
+	} else {
+		// STARTTLS (port 587 or 25)
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("failed to connect to SMTP server: %w", err)
+		}
+		defer conn.Close()
+
+		client, err = smtp.NewClient(conn, s.config.SMTPHost)
+		if err != nil {
+			return fmt.Errorf("failed to create SMTP client: %w", err)
+		}
+
+		// Upgrade to TLS
+		if err = client.StartTLS(tlsConfig); err != nil {
+			return fmt.Errorf("STARTTLS failed: %w", err)
+		}
 	}
 	defer client.Close()
 
 	// Authenticate
 	auth := smtp.PlainAuth("", s.config.SMTPUser, s.config.SMTPPassword, s.config.SMTPHost)
-	if err := client.Auth(auth); err != nil {
+	if err = client.Auth(auth); err != nil {
 		return fmt.Errorf("SMTP auth failed: %w", err)
 	}
 
 	// Set sender and recipient
-	if err := client.Mail(from); err != nil {
+	if err = client.Mail(from); err != nil {
 		return fmt.Errorf("failed to set sender: %w", err)
 	}
-	if err := client.Rcpt(to); err != nil {
+	if err = client.Rcpt(to); err != nil {
 		return fmt.Errorf("failed to set recipient: %w", err)
 	}
 
