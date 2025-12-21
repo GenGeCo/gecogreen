@@ -9,6 +9,7 @@
 	let error = '';
 	let selectedImage = 0;
 	let quantity = 1;
+	let buying = false;
 
 	$: productId = $page.params.id;
 
@@ -52,9 +53,24 @@
 		}
 	}
 
-	function handleAddToCart() {
-		// TODO: Implement cart functionality
-		alert(`Aggiunto ${quantity} x ${product?.title} al carrello`);
+	async function handleBuyNow() {
+		if (!product) return;
+		buying = true;
+		error = '';
+		try {
+			const response = await api.createOrder({
+				product_id: product.id,
+				quantity: quantity,
+				delivery_type: product.shipping_method === 'PICKUP' ? 'PICKUP' : 'SELLER_SHIPS'
+			});
+			// Redirect to Stripe Checkout
+			if (response.stripe_checkout_url) {
+				window.location.href = response.stripe_checkout_url;
+			}
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Errore nella creazione ordine';
+			buying = false;
+		}
 	}
 
 	onMount(loadProduct);
@@ -222,8 +238,17 @@
 										Modifica Prodotto
 									</a>
 								{:else}
-									<button class="btn btn-primary btn-lg w-full" on:click={handleAddToCart}>
-										Aggiungi al Carrello
+									<button
+										class="btn btn-primary btn-lg w-full"
+										on:click={handleBuyNow}
+										disabled={buying}
+									>
+										{#if buying}
+											<span class="loading loading-spinner loading-sm"></span>
+											Elaborazione...
+										{:else}
+											Compra Ora
+										{/if}
 									</button>
 								{/if}
 							{:else}
