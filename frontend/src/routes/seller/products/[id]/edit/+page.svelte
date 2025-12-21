@@ -7,6 +7,7 @@
 
 	let loading = true;
 	let saving = false;
+	let deleting = false;
 	let error = '';
 	let product: Product | null = null;
 
@@ -190,6 +191,21 @@
 		}
 
 		saving = false;
+	}
+
+	async function handleDelete() {
+		if (!confirm('Sei sicuro di voler eliminare questo prodotto? Questa azione non può essere annullata.')) {
+			return;
+		}
+		deleting = true;
+		error = '';
+		try {
+			await api.deleteProduct($page.params.id);
+			goto('/seller/dashboard');
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'Errore nell\'eliminazione';
+			deleting = false;
+		}
 	}
 </script>
 
@@ -671,6 +687,24 @@
 					{/if}
 				</button>
 				<a href="/products/{$page.params.id}" class="btn btn-ghost">Annulla</a>
+			</div>
+
+			<!-- Delete -->
+			<div class="divider"></div>
+			<div class="flex justify-end">
+				<button
+					type="button"
+					class="btn btn-error btn-outline"
+					on:click={handleDelete}
+					disabled={deleting}
+				>
+					{#if deleting}
+						<span class="loading loading-spinner loading-sm"></span>
+						Eliminazione...
+					{:else}
+						Elimina Prodotto
+					{/if}
+				</button>
 			</div>
 		</form>
 	{/if}
