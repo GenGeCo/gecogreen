@@ -148,7 +148,20 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore creazione ordine"})
 	}
 
-	// Create Stripe Checkout Session
+	// Handle free products (gifts) - no Stripe needed
+	if totalAmount == 0 {
+		// Mark as paid immediately for free items
+		_ = h.orderRepo.MarkAsPaid(ctx, order.ID, "FREE_GIFT")
+		successURL := fmt.Sprintf("%s/orders/%s/success", h.frontendURL, order.ID.String())
+		return c.Status(fiber.StatusCreated).JSON(models.CheckoutResponse{
+			OrderID:           order.ID,
+			StripeCheckoutURL: successURL, // Direct to success page
+			TotalAmount:       0,
+			ExpiresAt:         time.Now().Add(30 * time.Minute),
+		})
+	}
+
+	// Create Stripe Checkout Session for paid items
 	successURL := fmt.Sprintf("%s/orders/%s/success?session_id={CHECKOUT_SESSION_ID}", h.frontendURL, order.ID.String())
 	cancelURL := fmt.Sprintf("%s/orders/%s/cancel", h.frontendURL, order.ID.String())
 

@@ -93,7 +93,11 @@
       "Bash(ssh root@77.42.35.68 \"pkill -f ''node build'' 2>/dev/null; sleep 2; cd /opt/gecogreen/app/frontend && PORT=3000 nohup node build/index.js > /var/log/gecogreen-frontend.log 2>&1 & sleep 3; pgrep -a -f ''node build''\")",
       "Bash(ssh root@77.42.35.68 \"pkill -f ''node build''; sleep 2; cd /opt/gecogreen/app/frontend && PORT=3000 nohup node build/index.js > /var/log/gecogreen-frontend.log 2>&1 & sleep 3 && pgrep -f ''node build''\")",
       "Bash(ssh -o ConnectTimeout=20 root@77.42.35.68 \"pkill -f ''node build'' && cd /opt/gecogreen/app/frontend && PORT=3000 nohup node build/index.js > /var/log/gecogreen-frontend.log 2>&1 &\")",
-      "Bash(ssh root@77.42.35.68 \"pgrep -a -f ''node build'' && curl -s -o /dev/null -w ''%{http_code}'' http://localhost:3000\")"
+      "Bash(ssh root@77.42.35.68 \"pgrep -a -f ''node build'' && curl -s -o /dev/null -w ''%{http_code}'' http://localhost:3000\")",
+      "Bash(ssh root@77.42.35.68 \"pkill -f ''node build'' && cd /opt/gecogreen/app/frontend && PORT=3000 nohup node build/index.js > /var/log/gecogreen-frontend.log 2>&1 &\")",
+      "Bash(ssh root@77.42.35.68 \"pgrep -a -f ''node build''\")",
+      "Bash(ssh root@77.42.35.68 \"tail -100 /var/log/gecogreen.log | grep -i -E ''error|order|stripe|fail|panic''\")",
+      "Bash(ssh root@77.42.35.68 \"tail -200 /var/log/gecogreen.log\")"
     ]
   }
 }
