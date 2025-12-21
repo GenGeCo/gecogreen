@@ -21,15 +21,17 @@ type OrderHandler struct {
 	productRepo   *repository.ProductRepository
 	userRepo      *repository.UserRepository
 	stripeService *services.StripeService
+	emailService  *services.EmailService
 	frontendURL   string
 }
 
-func NewOrderHandler(orderRepo *repository.OrderRepository, productRepo *repository.ProductRepository, userRepo *repository.UserRepository, stripeService *services.StripeService, frontendURL string) *OrderHandler {
+func NewOrderHandler(orderRepo *repository.OrderRepository, productRepo *repository.ProductRepository, userRepo *repository.UserRepository, stripeService *services.StripeService, emailService *services.EmailService, frontendURL string) *OrderHandler {
 	return &OrderHandler{
 		orderRepo:     orderRepo,
 		productRepo:   productRepo,
 		userRepo:      userRepo,
 		stripeService: stripeService,
+		emailService:  emailService,
 		frontendURL:   frontendURL,
 	}
 }
@@ -672,7 +674,7 @@ func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
 
 		fmt.Printf("✅ Order %s marked as PAID (PaymentIntent: %s)\n", orderID, session.PaymentIntent.ID)
 
-		// Get order to decrement product quantity
+		// Get order to decrement product quantity and send emails
 		order, err := h.orderRepo.GetByID(ctx, orderID)
 		if err != nil {
 			fmt.Printf("Error getting order for quantity update: %v\n", err)
@@ -683,6 +685,9 @@ func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
 			} else {
 				fmt.Printf("✅ Product %s quantity decremented by %d\n", order.ProductID, order.Quantity)
 			}
+
+			// Send email notifications
+			go h.sendOrderEmails(order)
 		}
 
 	case "checkout.session.expired":
@@ -713,4 +718,58 @@ func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"received": true})
+}
+
+// sendOrderEmails sends email notifications to buyer and seller
+func (h *OrderHandler) sendOrderEmails(order *models.Order) {
+	if h.emailService == nil {
+		fmt.Println("Email service not configured, skipping notifications")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Get product details
+	product, err := h.productRepo.GetByID(ctx, order.ProductID)
+	if err != nil {
+		fmt.Printf("Error getting product for email: %v\n", err)
+		return
+	}
+
+	// Get buyer info
+	buyer, err := h.userRepo.GetByID(ctx, order.BuyerID)
+	if err != nil {
+		fmt.Printf("Error getting buyer for email: %v\n", err)
+		return
+	}
+
+	// Get seller info
+	seller, err := h.userRepo.GetByID(ctx, order.SellerID)
+	if err != nil {
+		fmt.Printf("Error getting seller for email: %v\n", err)
+		return
+	}
+
+	// Send to buyer
+	buyerName := buyer.FirstName
+	if buyerName == "" {
+		buyerName = "Cliente"
+	}
+	if err := h.emailService.SendOrderConfirmationToBuyer(order, product, buyer.Email, buyerName); err != nil {
+		fmt.Printf("Error sending email to buyer: %v\n", err)
+	} else {
+		fmt.Printf("✅ Email sent to buyer: %s\n", buyer.Email)
+	}
+
+	// Send to seller
+	sellerName := seller.FirstName
+	if sellerName == "" {
+		sellerName = "Venditore"
+	}
+	if err := h.emailService.SendNewOrderToSeller(order, product, seller.Email, sellerName, buyerName); err != nil {
+		fmt.Printf("Error sending email to seller: %v\n", err)
+	} else {
+		fmt.Printf("✅ Email sent to seller: %s\n", seller.Email)
+	}
 }

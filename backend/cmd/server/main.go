@@ -66,6 +66,14 @@ func main() {
 		log.Println("⚠️  Stripe not configured (STRIPE_SECRET_KEY not set)")
 	}
 
+	// Email Service
+	emailService := services.NewEmailService(cfg)
+	if cfg.SMTPUser != "" {
+		log.Println("✅ Email (SMTP) configured")
+	} else {
+		log.Println("⚠️  Email not configured (SMTP_USER not set)")
+	}
+
 	// Frontend URL for redirects
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
@@ -79,7 +87,7 @@ func main() {
 	categoryHandler := handlers.NewCategoryHandler(categoryRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo, imageReviewRepo)
 	leaderboardHandler := handlers.NewLeaderboardHandler(leaderboardRepo, userRepo)
-	orderHandler := handlers.NewOrderHandler(orderRepo, productRepo, userRepo, stripeService, frontendURL)
+	orderHandler := handlers.NewOrderHandler(orderRepo, productRepo, userRepo, stripeService, emailService, frontendURL)
 
 	// Optional: R2 Storage (for image uploads)
 	var uploadHandler *handlers.UploadHandler

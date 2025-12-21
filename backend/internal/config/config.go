@@ -32,8 +32,13 @@ type Config struct {
 	R2BucketName  string
 	R2PublicURL   string
 
-	// Resend (Email)
-	ResendAPIKey string
+	// SMTP (Email)
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFrom     string
+	FrontendURL  string
 }
 
 // Load loads configuration from environment variables
@@ -66,8 +71,13 @@ func Load() *Config {
 		R2BucketName:  getEnv("R2_BUCKET_NAME", "gecogreen-uploads"),
 		R2PublicURL:   getEnv("R2_PUBLIC_URL", ""),
 
-		// Resend
-		ResendAPIKey: getEnv("RESEND_API_KEY", ""),
+		// SMTP
+		SMTPHost:     getEnv("SMTP_HOST", "smtps.aruba.it"),
+		SMTPPort:     getEnv("SMTP_PORT", "465"),
+		SMTPUser:     getEnv("SMTP_USER", ""),
+		SMTPPassword: getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:     getEnv("SMTP_FROM", "noreply@gecogreen.com"),
+		FrontendURL:  getEnv("FRONTEND_URL", "https://gecogreen.com"),
 	}
 }
 
