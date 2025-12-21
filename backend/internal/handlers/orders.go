@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -638,10 +637,11 @@ func (h *OrderHandler) GetQRCode(c *fiber.Ctx) error {
 func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
 	fmt.Printf("🔔 Stripe webhook received!\n")
 
-	payload, err := io.ReadAll(c.Request().BodyStream())
-	if err != nil {
-		fmt.Printf("❌ Cannot read webhook body: %v\n", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot read body"})
+	// Use c.Body() instead of c.Request().BodyStream() for Fiber
+	payload := c.Body()
+	if len(payload) == 0 {
+		fmt.Printf("❌ Empty webhook body\n")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Empty body"})
 	}
 
 	fmt.Printf("📦 Webhook payload size: %d bytes\n", len(payload))
