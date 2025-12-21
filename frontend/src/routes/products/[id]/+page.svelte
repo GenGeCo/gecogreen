@@ -10,8 +10,16 @@
 	let selectedImage = 0;
 	let quantity = 1;
 	let buying = false;
+	let showShippingModal = false;
+
+	// Shipping address
+	let shippingAddress = '';
+	let shippingCity = '';
+	let shippingProvince = '';
+	let shippingPostalCode = '';
 
 	$: productId = $page.params.id;
+	$: needsShipping = product?.shipping_method !== 'PICKUP';
 
 	async function loadProduct() {
 		loading = true;
@@ -53,16 +61,34 @@
 		}
 	}
 
-	async function handleBuyNow() {
+	function handleBuyNow() {
+		if (!product) return;
+		if (needsShipping) {
+			showShippingModal = true;
+		} else {
+			submitOrder();
+		}
+	}
+
+	async function submitOrder() {
 		if (!product) return;
 		buying = true;
 		error = '';
+		showShippingModal = false;
 		try {
-			const response = await api.createOrder({
+			const orderData: any = {
 				product_id: product.id,
 				quantity: quantity,
-				delivery_type: product.shipping_method === 'PICKUP' ? 'PICKUP' : 'SELLER_SHIPS'
-			});
+				delivery_type: needsShipping ? 'SELLER_SHIPS' : 'PICKUP'
+			};
+			if (needsShipping) {
+				orderData.shipping_address = shippingAddress;
+				orderData.shipping_city = shippingCity;
+				orderData.shipping_province = shippingProvince;
+				orderData.shipping_postal_code = shippingPostalCode;
+				orderData.shipping_country = 'IT';
+			}
+			const response = await api.createOrder(orderData);
 			// Redirect to Stripe Checkout
 			if (response.stripe_checkout_url) {
 				window.location.href = response.stripe_checkout_url;
@@ -263,3 +289,46 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Shipping Address Modal -->
+{#if showShippingModal}
+<div class="modal modal-open">
+	<div class="modal-box">
+		<h3 class="font-bold text-lg mb-4">Indirizzo di Spedizione</h3>
+		<div class="space-y-4">
+			<div class="form-control">
+				<label class="label"><span class="label-text">Indirizzo *</span></label>
+				<input type="text" bind:value={shippingAddress} class="input input-bordered" placeholder="Via Roma 1" required />
+			</div>
+			<div class="grid grid-cols-2 gap-4">
+				<div class="form-control">
+					<label class="label"><span class="label-text">Città *</span></label>
+					<input type="text" bind:value={shippingCity} class="input input-bordered" placeholder="Milano" required />
+				</div>
+				<div class="form-control">
+					<label class="label"><span class="label-text">Provincia</span></label>
+					<input type="text" bind:value={shippingProvince} class="input input-bordered" placeholder="MI" maxlength="2" />
+				</div>
+			</div>
+			<div class="form-control">
+				<label class="label"><span class="label-text">CAP *</span></label>
+				<input type="text" bind:value={shippingPostalCode} class="input input-bordered" placeholder="20100" maxlength="5" required />
+			</div>
+		</div>
+		<div class="modal-action">
+			<button class="btn btn-ghost" on:click={() => showShippingModal = false}>Annulla</button>
+			<button
+				class="btn btn-primary"
+				on:click={submitOrder}
+				disabled={!shippingAddress || !shippingCity || !shippingPostalCode || buying}
+			>
+				{#if buying}
+					<span class="loading loading-spinner loading-sm"></span>
+				{/if}
+				Procedi al Pagamento
+			</button>
+		</div>
+	</div>
+	<div class="modal-backdrop" on:click={() => showShippingModal = false}></div>
+</div>
+{/if}
