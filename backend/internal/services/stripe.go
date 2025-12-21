@@ -91,7 +91,12 @@ func (s *StripeService) CreateCheckoutSession(order *models.Order, product *mode
 
 // VerifyWebhookSignature verifies a Stripe webhook signature
 func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string) (stripe.Event, error) {
-	return webhook.ConstructEvent(payload, signature, s.config.StripeWebhookSecret)
+	// Use ConstructEventWithOptions to ignore API version mismatch
+	// Stripe dashboard may use a newer API version than stripe-go library
+	return webhook.ConstructEventWithOptions(payload, signature, s.config.StripeWebhookSecret,
+		webhook.ConstructEventOptions{
+			IgnoreAPIVersionMismatch: true,
+		})
 }
 
 // Helper function to truncate strings
