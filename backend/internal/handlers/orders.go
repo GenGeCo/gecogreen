@@ -636,17 +636,24 @@ func (h *OrderHandler) GetQRCode(c *fiber.Ctx) error {
 // HandleStripeWebhook processes Stripe webhook events
 // POST /api/v1/webhooks/stripe
 func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
+	fmt.Printf("🔔 Stripe webhook received!\n")
+
 	payload, err := io.ReadAll(c.Request().BodyStream())
 	if err != nil {
+		fmt.Printf("❌ Cannot read webhook body: %v\n", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot read body"})
 	}
+
+	fmt.Printf("📦 Webhook payload size: %d bytes\n", len(payload))
 
 	signature := c.Get("Stripe-Signature")
 	event, err := h.stripeService.VerifyWebhookSignature(payload, signature)
 	if err != nil {
-		fmt.Printf("Webhook signature verification failed: %v\n", err)
+		fmt.Printf("❌ Webhook signature verification failed: %v\n", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid signature"})
 	}
+
+	fmt.Printf("✅ Webhook verified, event type: %s\n", event.Type)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -659,14 +666,22 @@ func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid event data"})
 		}
 
+		fmt.Printf("🔔 Webhook received: checkout.session.completed, session_id=%s\n", session.ID)
+
 		orderID, err := uuid.Parse(session.Metadata["order_id"])
 		if err != nil {
 			fmt.Printf("Invalid order_id in metadata: %v\n", err)
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid order_id"})
 		}
 
+		// Get PaymentIntent ID safely (it may be nil or just an ID string in webhook)
+		paymentIntentID := "webhook"
+		if session.PaymentIntent != nil {
+			paymentIntentID = session.PaymentIntent.ID
+		}
+
 		// Update order status to PAID
-		err = h.orderRepo.MarkAsPaid(ctx, orderID, session.PaymentIntent.ID)
+		err = h.orderRepo.MarkAsPaid(ctx, orderID, paymentIntentID)
 		if err != nil {
 			fmt.Printf("Error marking order as paid: %v\n", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update order"})
