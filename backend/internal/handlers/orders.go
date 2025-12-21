@@ -672,6 +672,19 @@ func (h *OrderHandler) HandleStripeWebhook(c *fiber.Ctx) error {
 
 		fmt.Printf("✅ Order %s marked as PAID (PaymentIntent: %s)\n", orderID, session.PaymentIntent.ID)
 
+		// Get order to decrement product quantity
+		order, err := h.orderRepo.GetByID(ctx, orderID)
+		if err != nil {
+			fmt.Printf("Error getting order for quantity update: %v\n", err)
+		} else {
+			// Decrement product quantity
+			if err := h.productRepo.DecrementQuantity(ctx, order.ProductID, order.Quantity); err != nil {
+				fmt.Printf("Error decrementing product quantity: %v\n", err)
+			} else {
+				fmt.Printf("✅ Product %s quantity decremented by %d\n", order.ProductID, order.Quantity)
+			}
+		}
+
 	case "checkout.session.expired":
 		var session stripe.CheckoutSession
 		if err := json.Unmarshal(event.Data.Raw, &session); err != nil {

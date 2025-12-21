@@ -429,6 +429,26 @@ func (r *ProductRepository) IncrementViewCount(ctx context.Context, id uuid.UUID
 	return err
 }
 
+// DecrementQuantity decreases available quantity after a purchase
+// Also sets status to SOLD if quantity reaches 0
+func (r *ProductRepository) DecrementQuantity(ctx context.Context, productID uuid.UUID, qty int) error {
+	query := `
+		UPDATE products
+		SET quantity_available = quantity_available - $1,
+		    status = CASE WHEN quantity_available - $1 <= 0 THEN 'SOLD'::product_status ELSE status END,
+		    updated_at = $2
+		WHERE id = $3 AND quantity_available >= $1
+	`
+	result, err := r.pool.Exec(ctx, query, qty, time.Now(), productID)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("insufficient quantity or product not found")
+	}
+	return nil
+}
+
 // AddImage adds an image URL to a product's images array
 func (r *ProductRepository) AddImage(ctx context.Context, productID uuid.UUID, imageURL string) error {
 	query := `
