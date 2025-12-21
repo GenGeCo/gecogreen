@@ -76,9 +76,10 @@
 		error = '';
 		showShippingModal = false;
 		try {
+			// Buy entire lot (all available quantity)
 			const orderData: any = {
 				product_id: product.id,
-				quantity: quantity,
+				quantity: product.quantity_available,
 				delivery_type: needsShipping ? 'SELLER_SHIPS' : 'PICKUP'
 			};
 			if (needsShipping) {
@@ -245,17 +246,10 @@
 				{#if product.quantity_available > 0}
 					<div class="divider"></div>
 					<div class="flex gap-4 items-center">
-						<div class="form-control w-24">
-							<label class="label">
-								<span class="label-text">Quantità</span>
-							</label>
-							<input
-								type="number"
-								min="1"
-								max={product.quantity_available}
-								bind:value={quantity}
-								class="input input-bordered"
-							/>
+						<!-- Lot sale info -->
+						<div class="bg-base-200 px-4 py-2 rounded-lg">
+							<span class="text-sm text-base-content/60">Lotto intero</span>
+							<p class="font-bold">{product.quantity_available} {product.quantity_unit || 'pz'}</p>
 						</div>
 						<div class="flex-1">
 							{#if $isAuthenticated}
