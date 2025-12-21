@@ -97,7 +97,10 @@
       "Bash(ssh root@77.42.35.68 \"pkill -f ''node build'' && cd /opt/gecogreen/app/frontend && PORT=3000 nohup node build/index.js > /var/log/gecogreen-frontend.log 2>&1 &\")",
       "Bash(ssh root@77.42.35.68 \"pgrep -a -f ''node build''\")",
       "Bash(ssh root@77.42.35.68 \"tail -100 /var/log/gecogreen.log | grep -i -E ''error|order|stripe|fail|panic''\")",
-      "Bash(ssh root@77.42.35.68 \"tail -200 /var/log/gecogreen.log\")"
+      "Bash(ssh root@77.42.35.68 \"tail -200 /var/log/gecogreen.log\")",
+      "Bash(ssh root@77.42.35.68 \"cd /opt/gecogreen/app && git fetch origin && git reset --hard origin/main && cd backend && /usr/local/go/bin/go build -o gecogreen-server ./cmd/server 2>&1\")",
+      "Bash(ssh root@77.42.35.68 \"cd /opt/gecogreen/app/backend && /usr/local/go/bin/go mod tidy && /usr/local/go/bin/go build -o gecogreen-server ./cmd/server 2>&1 && echo ''Build OK''\")",
+      "Bash(ssh root@77.42.35.68 \"killall gecogreen-server 2>/dev/null; sleep 2; cd /opt/gecogreen/app/backend && nohup ./gecogreen-server > /var/log/gecogreen.log 2>&1 & sleep 3; head -12 /var/log/gecogreen.log\")"
     ]
   }
 }

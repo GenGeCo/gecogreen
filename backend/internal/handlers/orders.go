@@ -140,6 +140,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 
 	err = h.orderRepo.Create(ctx, order)
 	if err != nil {
+		fmt.Printf("❌ Order creation error: %v\n", err)
 		if err == repository.ErrCannotOrder {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "Account sospeso per troppi strike. Contatta il supporto.",
@@ -147,6 +148,7 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Errore creazione ordine"})
 	}
+	fmt.Printf("✅ Order created: %s, totalAmount: %.2f\n", order.ID, totalAmount)
 
 	// Handle free products (gifts) - no Stripe needed
 	if totalAmount == 0 {
